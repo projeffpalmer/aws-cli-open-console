@@ -1,0 +1,79 @@
+# Curated console pages for "aws batch" (plan step 2.4, curator W5).
+# AWS Batch is regional: https://{region}.{host}/batch/home?region={region}#...
+#
+# Evidence (2026-11-04):
+#   view-samples/probe go/view?arn=...:job-queue/myjq
+#       -> #queues/detail/arn:aws:batch:us-west-2:123456789012:job-queue/myjq (raw)
+#   go/view?arn=...:compute-environment/myce -> #compute-environments/to-detail/<arn> (raw)
+#   go/view?arn=...:job-definition/myjd:1   -> #job-definition/to-detail/<arn> (raw)
+#   go/view?resourceType=AWS::Batch::JobDefinition&resourceId=myjd:1
+#       -> #job-definition/to-detail/myjd:1 (raw)
+#   go/view?arn=...:job/<uuid>              -> #jobs/to-detail/<uuid>
+#   go/list AWS::Batch::JobQueue -> #queues; ComputeEnvironment -> #compute-environments
+# Queues, compute environments and job definitions are named by name or
+# ARN; the resolver places both raw, so {id:raw} replaces the generated
+# {id}, which percent-encoded ARNs and the ":" of name:revision.
+# Not curated (no evidence): a jobs list or submit-job wizard fragment;
+# describe-job-definitions keeps the service home without an id.
+
+aws.batch.describe-job-queues:
+  intent: {verb: list, resource_type: AWS::Batch::JobQueue, id_args: [--job-queues]}
+  url:
+    best: "https://{region}.{host}/batch/home?region={region}#queues"
+    with_id: "https://{region}.{host}/batch/home?region={region}#queues/detail/{id:raw}"
+    source: curated
+    verified: "2026-11-04"
+    note: job queue page for one name or ARN, else the queues list
+
+aws.batch.describe-compute-environments:
+  intent: {verb: list, resource_type: AWS::Batch::ComputeEnvironment, id_args: [--compute-environments]}
+  url:
+    best: "https://{region}.{host}/batch/home?region={region}#compute-environments"
+    with_id: "https://{region}.{host}/batch/home?region={region}#compute-environments/to-detail/{id:raw}"
+    source: curated
+    verified: "2026-11-04"
+    note: compute environment page for one name or ARN, else the list
+
+aws.batch.describe-job-definitions:
+  intent: {verb: list, resource_type: AWS::Batch::JobDefinition, id_args: [--job-definitions]}
+  url:
+    best: "https://{region}.{host}/batch/home"
+    with_id: "https://{region}.{host}/batch/home?region={region}#job-definition/to-detail/{id:raw}"
+    source: curated
+    verified: "2026-11-04"
+    note: job definition page for one name:revision or ARN
+
+aws.batch.submit-job: &queue_of_job
+  intent:
+    verb: view
+    resource_type: AWS::Batch::JobQueue
+    id_args: []
+    params:
+      queue: {arg: --job-queue}
+  url:
+    best: "https://{region}.{host}/batch/home?region={region}#queues"
+    variants:
+      - when: [queue]
+        template: "https://{region}.{host}/batch/home?region={region}#queues/detail/{queue:raw}"
+    source: curated
+    verified: "2026-11-04"
+    note: the page of the job queue the job goes to (--job-queue)
+
+aws.batch.list-jobs: *queue_of_job
+
+aws.batch.describe-jobs: &job_view
+  intent: {verb: view, resource_type: null, id_args: [--jobs]}
+  url:
+    best: "https://{region}.{host}/batch/home"
+    with_id: "https://{region}.{host}/batch/home?region={region}#jobs/to-detail/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: job details page (go/view?arn=...:job/<id>)
+
+aws.batch.cancel-job:
+  <<: *job_view
+  intent: {verb: view, resource_type: null, id_args: [--job-id]}
+
+aws.batch.terminate-job:
+  <<: *job_view
+  intent: {verb: view, resource_type: null, id_args: [--job-id]}

@@ -1,0 +1,22 @@
+# Cases for scripts/console_db/overrides/elasticache.yaml (curator W3) plus
+# generated entries that were reviewed and kept.  Sample ids mycache, myrg
+# and mysnap come from view-samples.tsv and the live probes.
+- argv: [elasticache, describe-cache-clusters, --cache-cluster-id, mycache]
+  url: "https://us-west-2.console.aws.amazon.com/elasticache/home?region=us-west-2#/memcached/mycache"
+  source: resolver:list+view
+- argv: [elasticache, describe-replication-groups, --replication-group-id, myrg]
+  url: "https://us-west-2.console.aws.amazon.com/elasticache/home?region=us-west-2#/redis/myrg"
+- argv: [elasticache, describe-replication-groups]
+  url: "https://us-west-2.console.aws.amazon.com/elasticache/home?region=us-west-2#/redis"
+- argv: [elasticache, create-cache-cluster, --cache-cluster-id, mycache, --engine, memcached]
+  url: "https://us-west-2.console.aws.amazon.com/elasticache/home?region=us-west-2#/caches/create"
+  source: curated
+- argv: [elasticache, create-replication-group, --replication-group-id, myrg, --replication-group-description, demo]
+  url: "https://us-west-2.console.aws.amazon.com/elasticache/home?region=us-west-2#/caches/create"
+  source: curated
+- argv: [elasticache, describe-snapshots, --snapshot-name, mysnap]
+  url: "https://us-west-2.console.aws.amazon.com/elasticache/home?region=us-west-2#/snapshots/mysnap"
+  source: curated
+- argv: [elasticache, describe-snapshots]
+  url: "https://us-west-2.console.aws.amazon.com/elasticache/home"
+  source: curated

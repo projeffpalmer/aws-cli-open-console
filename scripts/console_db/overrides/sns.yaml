@@ -1,0 +1,42 @@
+# Curated console pages for "aws sns" (plan step 2.4, W2).
+# Regional console: https://{region}.{host}/sns/v3/home?region=...
+#
+# Evidence (2026-11-04):
+#   go/list?resourceType=AWS::SNS::Topic   -> #/topics
+#   go/create?resourceType=AWS::SNS::Topic -> #/create-topic
+#   go/view?resourceType=AWS::SNS::Topic&resourceId=<topic ARN> -> #/topic/<ARN, raw>
+#   go/view?arn=arn:aws:sns:...:mytopic -> #/topic/<ARN, raw> (view-samples.tsv)
+# The generated create-topic put --name into #/topic/ (the page wants the
+# ARN), list-subscriptions-by-topic put the topic ARN into #/subscription/,
+# and publish/subscribe had only the service home; all now use the topic
+# page (it lists the subscriptions and has Publish message) or the wizard.
+# list-subscriptions keeps its generated entry: go/list for
+# AWS::SNS::Subscription lands on the bare service home and no source shows
+# a subscriptions-list fragment.
+
+aws.sns.publish: &topic_node
+  intent:
+    verb: view
+    resource_type: AWS::SNS::Topic
+    id_args: [--topic-arn]
+  url:
+    best: "https://{region}.{host}/sns/v3/home?region={region}#/topics"
+    with_id: "https://{region}.{host}/sns/v3/home?region={region}#/topic/{id:raw}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: topic page (--topic-arn, raw like the resolver); no ARN gives the topics list
+aws.sns.subscribe: *topic_node
+aws.sns.list-subscriptions-by-topic: *topic_node
+
+aws.sns.create-topic:
+  intent:
+    verb: create
+    resource_type: AWS::SNS::Topic
+    id_args: []
+  url:
+    best: "https://{region}.{host}/sns/v3/home?region={region}#/create-topic"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: create-topic wizard (go/create); --name is not the ARN the topic page needs

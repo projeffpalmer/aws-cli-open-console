@@ -1,0 +1,39 @@
+# Cases for the curated classic "aws waf" pages (scripts/console_db/
+# overrides/waf.yaml): the resolver's list and create pages on the global
+# host.  With an id, the generated classic-console page is kept.  The id is
+# the sample id from awscli/examples/waf.
+
+- argv: [waf, create-ip-set, --name, my-ip-set, --change-token, "token"]
+  url: "https://console.aws.amazon.com/wafv2/homev2/ip-sets/new?region=us-west-2"
+  source: curated
+- argv: [waf, list-ip-sets]
+  url: "https://console.aws.amazon.com/wafv2/homev2/ip-sets?region=us-west-2#/"
+  source: curated
+- argv: [waf, list-web-acls]
+  region: eu-central-1
+  url: "https://console.aws.amazon.com/wafv2/homev2/web-acls?region=eu-central-1#/"
+  source: curated
+- argv: [waf, get-ip-set]
+  url: "https://console.aws.amazon.com/wafv2/homev2/ip-sets?region=us-west-2#/"
+  source: curated
+- argv: [waf, get-ip-set, --ip-set-id, a1b2c3d4-5678-90ab-cdef-EXAMPLE11111]
+  url: "https://console.aws.amazon.com/wafv2/home?region=global#/ipsets/a1b2c3d4-5678-90ab-cdef-EXAMPLE11111"
+  source: curated
+- argv: [waf, update-ip-set]
+  url: "https://console.aws.amazon.com/wafv2/homev2/ip-sets?region=us-west-2#/"
+  source: curated
+- argv: [waf, delete-ip-set]
+  url: "https://console.aws.amazon.com/wafv2/homev2/ip-sets?region=us-west-2#/"
+  source: curated
+- argv: [waf, get-web-acl]
+  url: "https://console.aws.amazon.com/wafv2/homev2/web-acls?region=us-west-2#/"
+  source: curated
+- argv: [waf, get-web-acl, --web-acl-id, a1b2c3d4-5678-90ab-cdef-EXAMPLE11111]
+  url: "https://console.aws.amazon.com/wafv2/home?region=global#/webacls/requests/a1b2c3d4-5678-90ab-cdef-EXAMPLE11111"
+  source: curated
+- argv: [waf, update-web-acl]
+  url: "https://console.aws.amazon.com/wafv2/homev2/web-acls?region=us-west-2#/"
+  source: curated
+- argv: [waf, delete-web-acl]
+  url: "https://console.aws.amazon.com/wafv2/homev2/web-acls?region=us-west-2#/"
+  source: curated

@@ -1,0 +1,54 @@
+# Curated console pages for "aws athena" (plan step 2.4, curator W3).
+# Athena is regional: https://{region}.{host}/athena/home?region={region}#/...
+#
+# Evidence (2026-11-04):
+#   go/view?resourceType=AWS::Athena::WorkGroup&resourceId=zz9idzz9
+#                              -> #/workgroups/details/zz9idzz9 (view-by-id.tsv)
+#   go/view?resourceType=AWS::Athena::DataCatalog&resourceId=zz9idzz9
+#                              -> #/data-sources/details/zz9idzz9 (view-by-id.tsv)
+#   go/list?resourceType=AWS::Athena::DataCatalog -> #/data-sources (types.tsv)
+# Query execution pages (start-query-execution, get-query-execution,
+# get-query-results, list-query-executions) keep their generated home page:
+# no source among the snapshots, resolver, reference projects or AWS
+# documentation shows a query editor or history fragment.
+
+aws.athena.get-work-group: &workgroup_page
+  intent:
+    verb: view
+    resource_type: AWS::Athena::WorkGroup
+    id_args: [--work-group]
+  url:
+    best: "https://{region}.{host}/athena/home?region={region}#/workgroups"
+    with_id: "https://{region}.{host}/athena/home?region={region}#/workgroups/details/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: workgroup page of --work-group; workgroups list without one
+
+aws.athena.update-work-group: *workgroup_page
+aws.athena.delete-work-group: *workgroup_page
+
+aws.athena.get-data-catalog:
+  intent:
+    verb: view
+    resource_type: AWS::Athena::DataCatalog
+    id_args: [--name]
+  url:
+    best: "https://{region}.{host}/athena/home?region={region}#/data-sources"
+    with_id: "https://{region}.{host}/athena/home?region={region}#/data-sources/details/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: data source page of --name; data sources list without one
+
+aws.athena.list-databases: &catalog_page
+  intent:
+    verb: list
+    resource_type: AWS::Athena::DataCatalog
+    id_args: [--catalog-name]
+  url:
+    best: "https://{region}.{host}/athena/home?region={region}#/data-sources"
+    with_id: "https://{region}.{host}/athena/home?region={region}#/data-sources/details/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: the data source page of --catalog-name, which lists its databases
+
+aws.athena.list-table-metadata: *catalog_page

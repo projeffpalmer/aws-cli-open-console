@@ -1,0 +1,5 @@
+# Documentation landing overrides, keyed by tier-1 CLI name (read by
+# scripts/console_db/docs.py).  Each entry is {landing: <URL>} and wins over
+# the probe in snapshots/docs.tsv (docs.source curated).  Curated landings
+# for the services of plan steps 2.4 and 2.5 are added with those steps.
+{}

@@ -1,0 +1,32 @@
+# Cases for scripts/console_db/overrides/configservice.yaml.  Sample rule
+# from scripts/console_db/snapshots/view-samples.tsv (myrule).
+- argv: [configservice, put-config-rule, --config-rule, file://rule.json]
+  url: "https://us-west-2.console.aws.amazon.com/config/home?region=us-west-2#/rules/add"
+  source: curated
+- argv: [configservice, describe-configuration-recorders]
+  url: "https://us-west-2.console.aws.amazon.com/config/home?region=us-west-2#/settings"
+  source: curated
+- argv: [configservice, describe-configuration-recorders, --configuration-recorder-names, default]
+  url: "https://us-west-2.console.aws.amazon.com/config/home?region=us-west-2#/settings"
+  source: curated
+- argv: [configservice, describe-configuration-recorders, --arn, "arn:aws:config:us-west-2:123456789012:configuration-recorder/default/abc"]
+  url: "https://us-west-2.console.aws.amazon.com/config/home?region=us-west-2#/settings/recorder-details?arn=arn:aws:config:us-west-2:123456789012:configuration-recorder/default/abc"
+  source: curated
+- argv: [configservice, describe-delivery-channels]
+  region: eu-central-1
+  url: "https://eu-central-1.console.aws.amazon.com/config/home?region=eu-central-1#/settings"
+  source: curated
+- argv: [configservice, get-status]
+  url: "https://us-west-2.console.aws.amazon.com/config/home?region=us-west-2#/settings"
+  source: curated
+- argv: [configservice, subscribe, --s3-bucket, mybucket, --sns-topic, "arn:aws:sns:us-west-2:123456789012:mytopic"]
+  url: "https://us-west-2.console.aws.amazon.com/config/home?region=us-west-2#/settings"
+  source: curated
+- argv: [configservice, select-resource-config, --expression, "SELECT resourceId WHERE resourceType = 'AWS::EC2::Instance'"]
+  url: "https://us-west-2.console.aws.amazon.com/config/home?region=us-west-2#/queries/editor"
+  source: curated
+# Generated entries that stay.
+- argv: [configservice, describe-config-rules]
+  url: "https://us-west-2.console.aws.amazon.com/config/home?region=us-west-2#/rules"
+- argv: [configservice, get-compliance-details-by-config-rule, --config-rule-name, myrule]
+  url: "https://us-west-2.console.aws.amazon.com/config/home?region=us-west-2#/rules"

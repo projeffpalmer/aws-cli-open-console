@@ -1,0 +1,76 @@
+# Cases for the curated "aws cloudfront" nodes (scripts/console_db/overrides/cloudfront.yaml).
+# CloudFront is global: the host has no region.  Sample ids E1234567890ABC,
+# the cache policy 658327ea-... and function myfn come from view-samples.tsv and the probes.
+- argv: [cloudfront, list-distributions]
+  url: "https://console.aws.amazon.com/cloudfront/v4/home#/distributions"
+  source: curated
+- argv: [cloudfront, list-distributions]
+  region: eu-central-1
+  url: "https://console.aws.amazon.com/cloudfront/v4/home#/distributions"
+  source: curated
+- argv: [cloudfront, create-distribution, --origin-domain-name, mybucket.s3.amazonaws.com]
+  url: "https://console.aws.amazon.com/cloudfront/v4/home#/distributions/create"
+  source: curated
+- argv: [cloudfront, create-distribution-with-tags, --distribution-config-with-tags, "file://dist.json"]
+  url: "https://console.aws.amazon.com/cloudfront/v4/home#/distributions/create"
+  source: curated
+- argv: [cloudfront, get-distribution, --id, E1234567890ABC]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/distributions/E1234567890ABC"
+  source: curated
+- argv: [cloudfront, get-distribution]
+  url: "https://console.aws.amazon.com/cloudfront/v4/home#/distributions"
+  source: curated
+- argv: [cloudfront, get-distribution-config, --id, E1234567890ABC]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/distributions/E1234567890ABC"
+  source: curated
+- argv: [cloudfront, update-distribution, --id, E1234567890ABC, --default-root-object, index.html]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/distributions/E1234567890ABC"
+  source: curated
+- argv: [cloudfront, delete-distribution, --id, E1234567890ABC, --if-match, E2QWRUHEXAMPLE]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/distributions/E1234567890ABC"
+  source: curated
+- argv: [cloudfront, wait, distribution-deployed, --id, E1234567890ABC]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/distributions/E1234567890ABC"
+  source: curated
+- argv: [cloudfront, create-invalidation, --distribution-id, E1234567890ABC, --paths, "/*"]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/distributions/E1234567890ABC"
+  source: curated
+- argv: [cloudfront, list-invalidations, --distribution-id, E1234567890ABC]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/distributions/E1234567890ABC"
+  source: curated
+- argv: [cloudfront, get-invalidation, --distribution-id, E1234567890ABC, --id, I2J0I21PCUYOIK]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/distributions/E1234567890ABC"
+  source: curated
+- argv: [cloudfront, wait, invalidation-completed, --distribution-id, E1234567890ABC, --id, I2J0I21PCUYOIK]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/distributions/E1234567890ABC"
+  source: curated
+- argv: [cloudfront, list-cache-policies]
+  url: "https://console.aws.amazon.com/cloudfront/v4/home#/policies/cache"
+  source: curated
+- argv: [cloudfront, get-cache-policy, --id, 658327ea-f89d-4fab-a63d-7e88639e58f6]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/policies/cache/658327ea-f89d-4fab-a63d-7e88639e58f6"
+  source: curated
+- argv: [cloudfront, get-cache-policy-config, --id, 658327ea-f89d-4fab-a63d-7e88639e58f6]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/policies/cache/658327ea-f89d-4fab-a63d-7e88639e58f6"
+  source: curated
+- argv: [cloudfront, list-origin-access-controls]
+  url: "https://console.aws.amazon.com/cloudfront/v4/home#/originAccess"
+  source: curated
+- argv: [cloudfront, list-functions]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/functions"
+  source: curated
+- argv: [cloudfront, describe-function, --name, myfn]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/functions/myfn"
+  source: curated
+- argv: [cloudfront, get-function, out.js, --name, myfn]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/functions/myfn"
+  source: curated
+- argv: [cloudfront, update-function, --name, myfn, --if-match, ETVABCEXAMPLE]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/functions/myfn"
+  source: curated
+- argv: [cloudfront, publish-function, --name, myfn, --if-match, ETVABCEXAMPLE]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/functions/myfn"
+  source: curated
+- argv: [cloudfront, test-function, --name, myfn, --if-match, ETVABCEXAMPLE]
+  url: "https://console.aws.amazon.com/cloudfront/v3/home#/functions/myfn"
+  source: curated

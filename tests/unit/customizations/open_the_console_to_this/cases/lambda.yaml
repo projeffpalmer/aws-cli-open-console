@@ -1,0 +1,94 @@
+# Cases for scripts/console_db/overrides/lambda.yaml.  Sample names and
+# ARNs come from scripts/console_db/snapshots/view-samples.tsv
+# (function myfn, layer mylayer version 1, account 123456789012).
+
+# Function page: name or ARN, kept raw like the resolver does.
+- argv: [lambda, get-function, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, get-function, --function-name, "arn:aws:lambda:us-west-2:123456789012:function:myfn"]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/arn:aws:lambda:us-west-2:123456789012:function:myfn"
+  source: curated
+- argv: [lambda, get-function]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions"
+  source: curated
+- argv: [lambda, get-function-configuration, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, update-function-configuration, --function-name, myfn, --timeout, "30"]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, update-function-code, --function-name, myfn, --zip-file, "fileb://function.zip"]
+  region: eu-central-1
+  url: "https://eu-central-1.console.aws.amazon.com/lambda/home?region=eu-central-1#/functions/myfn"
+  source: curated
+- argv: [lambda, delete-function, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, invoke, out.json, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+# The positional outfile typed after --function-name (a scalar) stays the
+# outfile, so the function page still opens.
+- argv: [lambda, invoke, --function-name, myfn, out.json]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, invoke, --function-name, myfn, --payload, "{}", out.json]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, get-policy, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, add-permission, --function-name, myfn, --statement-id, s3, --action, "lambda:InvokeFunction", --principal, s3.amazonaws.com]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, list-versions-by-function, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, list-aliases, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, create-event-source-mapping, --function-name, myfn, --event-source-arn, "arn:aws:sqs:us-west-2:123456789012:myqueue"]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, wait, function-active, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, wait, function-active-v2, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, wait, function-updated, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, wait, function-updated-v2, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+- argv: [lambda, wait, function-exists, --function-name, myfn]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions/myfn"
+  source: curated
+
+# Create wizard, even with a name.
+- argv: [lambda, create-function, --function-name, myfn, --runtime, python3.13]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/create/function"
+  source: curated
+
+# Layers: list, layer page, layer version page; a layer ARN gives the name.
+- argv: [lambda, list-layers]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/layers"
+  source: curated
+- argv: [lambda, get-layer-version, --layer-name, mylayer, --version-number, "1"]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/layers/mylayer/versions/1"
+  source: curated
+- argv: [lambda, get-layer-version, --layer-name, "arn:aws:lambda:us-west-2:123456789012:layer:mylayer", --version-number, "1"]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/layers/mylayer/versions/1"
+  source: curated
+- argv: [lambda, publish-layer-version, --layer-name, mylayer, --zip-file, "fileb://layer.zip"]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/layers/mylayer"
+  source: curated
+- argv: [lambda, list-layer-versions, --layer-name, "arn:aws:lambda:us-west-2:123456789012:layer:mylayer"]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/layers/mylayer"
+  source: curated
+
+# Not curated: the generated functions list stays.
+- argv: [lambda, list-functions]
+  url: "https://us-west-2.console.aws.amazon.com/lambda/home?region=us-west-2#/functions"

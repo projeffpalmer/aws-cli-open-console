@@ -1,0 +1,54 @@
+# Curated console pages for "aws sts" (plan step 2.4).  STS has no console
+# of its own; the resolver sends go/view?service=sts to the IAM console
+# (https://console.aws.amazon.com/iam/home), which is global, so every
+# template uses https://{host}/iam/home#/...
+#
+# Evidence (2026-11-04):
+#   go/view?arn=arn:aws:iam::123456789012:role/MyRole
+#       -> /iam/home#/roles/details/MyRole            (view-samples.tsv)
+#   go/view?arn=arn:aws:iam::123456789012:role/service-role/MyRole
+#       -> /iam/home#/roles/details/MyRole            (live probe)
+# The resolver keeps only the last path segment of a role ARN, which is the
+# basename parse function (arn_resource would keep "service-role/MyRole").
+# #/home and #/security_credentials are IAM console fragments that cannot be
+# checked unauthenticated (path-only).
+
+aws.sts.get-caller-identity:
+  intent:
+    verb: home
+    resource_type: null
+    id_args: []
+  url:
+    best: "https://{host}/iam/home#/home"
+    source: curated
+    verified: path-only
+    note: IAM dashboard, which shows the account id and the signed-in identity
+
+aws.sts.assume-role:
+  intent:
+    verb: view
+    resource_type: AWS::IAM::Role
+    id_args: []
+    params:
+      role: {arg: --role-arn, parse: basename}
+  url:
+    best: "https://{host}/iam/home#/roles"
+    variants:
+      - when: [role]
+        template: "https://{host}/iam/home#/roles/details/{role}"
+    source: curated
+    verified: path-only
+    note: the role page of --role-arn (last ARN path segment, the exact go/view?arn= shape); roles list on the global host otherwise
+
+aws.sts.get-session-token: &security_credentials
+  intent:
+    verb: home
+    resource_type: null
+    id_args: []
+  url:
+    best: "https://{host}/iam/home#/security_credentials"
+    source: curated
+    verified: path-only
+    note: IAM security credentials page (access keys and MFA devices of the caller)
+
+aws.sts.get-federation-token: *security_credentials

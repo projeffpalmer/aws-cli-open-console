@@ -1,0 +1,158 @@
+# Curated console pages for "aws apigatewayv2" (HTTP and WebSocket APIs; plan
+# step 2.4, group W4).  Same regional console as apigateway.
+#
+# Evidence (2026-11-04):
+#   go/list?resourceType=AWS::ApiGateway::RestApi -> /apigateway/main/apis?region=<r>
+#     (the console's single APIs list, which shows HTTP and WebSocket APIs too;
+#     go/list for AWS::ApiGatewayV2::Api only gives the welcome page)
+#   go/create?resourceType=AWS::ApiGatewayV2::Api -> /apigateway/main/precreate?region=<r>
+#   go/view?resourceType=AWS::ApiGatewayV2::Api&resourceId=zz9idzz9 -> /apigateway/main/api-detail?api=zz9idzz9&region=<r>
+#   ...::Deployment  -> /apigateway/main/deploy/stages?api=zz9idzz9&region=<r>
+#   ...::IntegrationResponse -> /apigateway/main/develop/integrations/list?api=zz9idzz9&region=<r>
+#   go/view?arn=...::/apis/abc123/stages/prod -> /main/deploy/stages?api=abc123&region=<r>&stage=prod
+#   go/view?arn=...::/apis/abc123/routes/r1   -> /main/develop/routes?api=abc123&region=<r>&routes=r1
+#   go/list?resourceType=AWS::ApiGateway::DomainName -> /apigateway/main/publish/domain-names?region=<r>
+#   go/view?arn=...::/domainnames/api.example.com -> ...domain-names?domain=api.example.com&region=<r>
+
+aws.apigatewayv2.get-apis:
+  intent:
+    verb: list
+    resource_type: AWS::ApiGatewayV2::Api
+    id_args: []
+  url:
+    best: "https://{region}.{host}/apigateway/main/apis?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: the console's APIs list (go/list for AWS::ApiGateway::RestApi), which includes HTTP and WebSocket APIs
+
+aws.apigatewayv2.create-api:
+  intent:
+    verb: create
+    resource_type: AWS::ApiGatewayV2::Api
+    id_args: []
+  url:
+    best: "https://{region}.{host}/apigateway/main/precreate?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: create-API wizard; the generated entry put --name where the API id goes
+
+aws.apigatewayv2.get-api: &agw2_api
+  intent:
+    verb: view
+    resource_type: AWS::ApiGatewayV2::Api
+    id_args: [--api-id]
+  url:
+    best: "https://{region}.{host}/apigateway/main/apis?region={region}"
+    with_id: "https://{region}.{host}/apigateway/main/api-detail?api={id:query}&region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: API detail page of --api-id
+aws.apigatewayv2.update-api: *agw2_api
+aws.apigatewayv2.delete-api: *agw2_api
+
+aws.apigatewayv2.get-routes: &agw2_routes
+  intent:
+    verb: list
+    resource_type: AWS::ApiGatewayV2::Route
+    id_args: [--api-id]
+  url:
+    best: "https://{region}.{host}/apigateway/main/apis?region={region}"
+    with_id: "https://{region}.{host}/apigateway/main/develop/routes?api={id:query}&region={region}"
+    source: curated
+    verified: path-only
+    note: routes of --api-id (the route page without &routes=)
+aws.apigatewayv2.create-route: *agw2_routes
+
+aws.apigatewayv2.get-route: &agw2_route
+  intent:
+    verb: view
+    resource_type: AWS::ApiGatewayV2::Route
+    id_args: []
+    params:
+      api: {arg: --api-id}
+      route: {arg: --route-id}
+  url:
+    best: "https://{region}.{host}/apigateway/main/apis?region={region}"
+    variants:
+      - when: [api, route]
+        template: "https://{region}.{host}/apigateway/main/develop/routes?api={api:query}&region={region}&routes={route:query}"
+      - when: [api]
+        template: "https://{region}.{host}/apigateway/main/develop/routes?api={api:query}&region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: route page (go/view?arn= of a route ARN)
+aws.apigatewayv2.update-route: *agw2_route
+aws.apigatewayv2.delete-route: *agw2_route
+
+aws.apigatewayv2.get-stages: &agw2_stages
+  intent:
+    verb: list
+    resource_type: AWS::ApiGatewayV2::Stage
+    id_args: [--api-id]
+  url:
+    best: "https://{region}.{host}/apigateway/main/apis?region={region}"
+    with_id: "https://{region}.{host}/apigateway/main/deploy/stages?api={id:query}&region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: stages of --api-id
+aws.apigatewayv2.create-stage: *agw2_stages
+
+aws.apigatewayv2.get-stage: &agw2_stage
+  intent:
+    verb: view
+    resource_type: AWS::ApiGatewayV2::Stage
+    id_args: []
+    params:
+      api: {arg: --api-id}
+      stage: {arg: --stage-name}
+  url:
+    best: "https://{region}.{host}/apigateway/main/apis?region={region}"
+    variants:
+      - when: [api, stage]
+        template: "https://{region}.{host}/apigateway/main/deploy/stages?api={api:query}&region={region}&stage={stage:query}"
+      - when: [api]
+        template: "https://{region}.{host}/apigateway/main/deploy/stages?api={api:query}&region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: stage page (go/view?arn= of a stage ARN)
+aws.apigatewayv2.update-stage: *agw2_stage
+aws.apigatewayv2.delete-stage: *agw2_stage
+
+aws.apigatewayv2.get-integrations: &agw2_integrations
+  intent:
+    verb: list
+    resource_type: AWS::ApiGatewayV2::Integration
+    id_args: [--api-id]
+  url:
+    best: "https://{region}.{host}/apigateway/main/apis?region={region}"
+    with_id: "https://{region}.{host}/apigateway/main/develop/integrations/list?api={id:query}&region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: integrations of --api-id
+aws.apigatewayv2.get-integration: *agw2_integrations
+aws.apigatewayv2.create-integration: *agw2_integrations
+
+aws.apigatewayv2.get-domain-names:
+  intent:
+    verb: list
+    resource_type: AWS::ApiGatewayV2::DomainName
+    id_args: []
+  url:
+    best: "https://{region}.{host}/apigateway/main/publish/domain-names?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: custom domain names list (shared with REST APIs; go/list for AWS::ApiGateway::DomainName)
+
+aws.apigatewayv2.get-domain-name: &agw2_domain
+  intent:
+    verb: view
+    resource_type: AWS::ApiGatewayV2::DomainName
+    id_args: [--domain-name]
+  url:
+    best: "https://{region}.{host}/apigateway/main/publish/domain-names?region={region}"
+    with_id: "https://{region}.{host}/apigateway/main/publish/domain-names?domain={id:query}&region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: custom domain name page of --domain-name
+aws.apigatewayv2.delete-domain-name: *agw2_domain
+aws.apigatewayv2.update-domain-name: *agw2_domain

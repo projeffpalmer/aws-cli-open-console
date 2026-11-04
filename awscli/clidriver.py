@@ -603,6 +603,12 @@ class CLIDriver:
             self._emit_session_event(parsed_args)
             HISTORY_RECORDER.record('CLI_VERSION', self._cli_version(), 'CLI')
             HISTORY_RECORDER.record('CLI_ARGUMENTS', args, 'CLI')
+            if getattr(parsed_args, 'in_console', False):
+                from awscli.customizations.open_the_console_to_this import (
+                    open_console,
+                )
+
+                return open_console(self.session, parsed_args, remaining)
             return command_table[parsed_args.command](remaining, parsed_args)
         except BaseException as e:
             # when --version action executed default argparser prints out

@@ -1,0 +1,25 @@
+# Cases for the curated "aws sso-admin" operations (scripts/console_db/
+# overrides/sso-admin.yaml).  ARNs are the samples from
+# snapshots/view-samples.tsv and the live go/view?arn= probe.
+
+- argv: [sso-admin, list-permission-sets, --instance-arn, "arn:aws:sso:::instance/ssoins-abc"]
+  url: "https://us-west-2.console.aws.amazon.com/singlesignon/home"
+  source: curated
+- argv: [sso-admin, create-permission-set, --instance-arn, "arn:aws:sso:::instance/ssoins-abc", --name, Admins]
+  url: "https://us-west-2.console.aws.amazon.com/singlesignon/home"
+  source: curated
+- argv: [sso-admin, describe-permission-set, --instance-arn, "arn:aws:sso:::instance/ssoins-abc", --permission-set-arn, "arn:aws:sso:::permissionSet/ssoins-abc/ps-abc"]
+  url: "https://us-west-2.console.aws.amazon.com/singlesignon/organization/home?region=us-west-2#/permission-sets/details/ps-abc"
+  source: curated
+- argv: [sso-admin, list-account-assignments, --instance-arn, "arn:aws:sso:::instance/ssoins-abc", --account-id, "111111111111", --permission-set-arn, "arn:aws:sso:::permissionSet/ssoins-abc/ps-abc"]
+  region: us-east-2
+  url: "https://us-east-2.console.aws.amazon.com/singlesignon/organization/home?region=us-east-2#/permission-sets/details/ps-abc"
+  source: curated
+- argv: [sso-admin, list-account-assignments, --instance-arn, "arn:aws:sso:::instance/ssoins-abc", --account-id, "111111111111"]
+  url: "https://us-west-2.console.aws.amazon.com/singlesignon/home"
+  source: curated
+
+# Not curated: the generated Identity Center home stays.
+- argv: [sso-admin, list-instances]
+  url: "https://us-west-2.console.aws.amazon.com/singlesignon/home"
+  source: derived

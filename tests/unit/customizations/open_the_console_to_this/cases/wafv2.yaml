@@ -1,0 +1,13 @@
+# Cases for the curated "aws wafv2" create pages (scripts/console_db/
+# overrides/wafv2.yaml): the resolver's create page on the global host.
+
+- argv: [wafv2, create-ip-set, --name, my-ip-set, --scope, REGIONAL]
+  url: "https://console.aws.amazon.com/wafv2/homev2/ip-sets/new?region=us-west-2"
+  source: curated
+- argv: [wafv2, create-regex-pattern-set, --name, my-patterns, --scope, REGIONAL]
+  url: "https://console.aws.amazon.com/wafv2/homev2/regex-pattern-sets/new?region=us-west-2"
+  source: curated
+- argv: [wafv2, create-rule-group, --name, my-rules, --scope, REGIONAL]
+  region: eu-central-1
+  url: "https://console.aws.amazon.com/wafv2/homev2/rule-groups/new?region=eu-central-1"
+  source: curated

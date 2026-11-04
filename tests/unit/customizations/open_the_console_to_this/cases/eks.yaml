@@ -1,0 +1,81 @@
+# Cases for the curated "aws eks" nodes (scripts/console_db/overrides/eks.yaml).
+# Sample names come from the go/view?arn= probes (mycluster, myng, myfp, vpc-cni).
+- argv: [eks, list-clusters]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters"
+- argv: [eks, describe-cluster, --name, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster"
+- argv: [eks, list-nodegroups, --cluster-name, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster"
+  source: curated
+- argv: [eks, list-fargate-profiles, --cluster-name, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster"
+  source: curated
+- argv: [eks, list-addons, --cluster-name, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster"
+  source: curated
+- argv: [eks, create-nodegroup, --cluster-name, mycluster, --nodegroup-name, myng, --node-role, "arn:aws:iam::123456789012:role/node"]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster"
+  source: curated
+- argv: [eks, create-fargate-profile, --cluster-name, mycluster, --fargate-profile-name, myfp]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster"
+  source: curated
+- argv: [eks, create-addon, --cluster-name, mycluster, --addon-name, vpc-cni]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster"
+  source: curated
+- argv: [eks, get-token, --cluster-name, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster"
+  source: curated
+- argv: [eks, update-kubeconfig, --name, mycluster, --alias, dev]
+  region: eu-west-1
+  url: "https://eu-west-1.console.aws.amazon.com/eks/home?region=eu-west-1#/clusters/mycluster"
+  source: curated
+- argv: [eks, update-kubeconfig]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters"
+  source: curated
+- argv: [eks, describe-nodegroup, --cluster-name, mycluster, --nodegroup-name, myng]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/nodegroups/myng"
+  source: curated
+- argv: [eks, delete-nodegroup, --cluster-name, mycluster, --nodegroup-name, myng]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/nodegroups/myng"
+  source: curated
+- argv: [eks, update-nodegroup-config, --cluster-name, mycluster, --nodegroup-name, myng]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/nodegroups/myng"
+  source: curated
+- argv: [eks, update-nodegroup-version, --cluster-name, mycluster, --nodegroup-name, myng]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/nodegroups/myng"
+  source: curated
+- argv: [eks, wait, nodegroup-active, --cluster-name, mycluster, --nodegroup-name, myng]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/nodegroups/myng"
+  source: curated
+- argv: [eks, wait, nodegroup-deleted, --cluster-name, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster"
+  source: curated
+- argv: [eks, describe-fargate-profile, --cluster-name, mycluster, --fargate-profile-name, myfp]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/fargate-profiles/myfp"
+  source: curated
+- argv: [eks, delete-fargate-profile, --cluster-name, mycluster, --fargate-profile-name, myfp]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/fargate-profiles/myfp"
+  source: curated
+- argv: [eks, wait, fargate-profile-active, --cluster-name, mycluster, --fargate-profile-name, myfp]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/fargate-profiles/myfp"
+  source: curated
+- argv: [eks, wait, fargate-profile-deleted, --cluster-name, mycluster, --fargate-profile-name, myfp]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/fargate-profiles/myfp"
+  source: curated
+- argv: [eks, describe-addon, --cluster-name, mycluster, --addon-name, vpc-cni]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/add-ons/vpc-cni"
+  source: curated
+- argv: [eks, update-addon, --cluster-name, mycluster, --addon-name, vpc-cni]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/add-ons/vpc-cni"
+  source: curated
+- argv: [eks, delete-addon, --cluster-name, mycluster, --addon-name, vpc-cni]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/add-ons/vpc-cni"
+  source: curated
+- argv: [eks, wait, addon-active, --cluster-name, mycluster, --addon-name, vpc-cni]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster/add-ons/vpc-cni"
+  source: curated
+- argv: [eks, wait, addon-deleted, --addon-name, vpc-cni]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters"
+  source: curated
+- argv: [eks, wait, cluster-active, --name, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/eks/home?region=us-west-2#/clusters/mycluster"

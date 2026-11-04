@@ -1,0 +1,19 @@
+# Curated console pages for "aws sso" (plan step 2.4).  sso is the client
+# API of the AWS access portal; the brief maps it to the IAM Identity Center
+# console of the region, the same page as "aws configure sso".
+#
+# Evidence (2026-11-04): go/view?service=sso -> <r>.console.../singlesignon/home
+# (snapshots/services.tsv); the ?region= query is added like the
+# identitystore resolver pages do (singlesignon/home?region=<r>#/), so
+# path-only.
+
+aws.sso.login: &identity_center
+  intent: {verb: home, resource_type: null, id_args: []}
+  url:
+    best: "https://{region}.{host}/singlesignon/home?region={region}"
+    source: curated
+    verified: path-only
+    note: IAM Identity Center console of the region
+
+aws.sso.logout: *identity_center
+aws.sso.list-accounts: *identity_center

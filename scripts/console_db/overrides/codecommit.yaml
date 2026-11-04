@@ -1,0 +1,53 @@
+# Curated console pages for "aws codecommit" (plan step 2.4, group W4).
+# CodeCommit is a regional console under https://{region}.{host}/codesuite/codecommit/.
+#
+# Evidence (2026-11-04):
+#   go/list?resourceType=AWS::CodeCommit::Repository   -> /codesuite/codecommit/repositories?region=<r>
+#   go/create?resourceType=AWS::CodeCommit::Repository -> /codesuite/codecommit/repository/create?region=<r>
+#   go/view?arn=arn:aws:codecommit:us-west-2:123456789012:myrepo
+#     -> /codesuite/codecommit/repositories/myrepo/browse?region=<r>
+# Branch and pull-request sub-pages are not evidenced, so branch and
+# pull-request operations that name --repository-name open the repository
+# page; get-pull-request (only --pull-request-id) keeps its generated entry.
+
+aws.codecommit.list-branches: &cc_repo
+  intent:
+    verb: view
+    resource_type: AWS::CodeCommit::Repository
+    id_args: [--repository-name]
+  url:
+    best: "https://{region}.{host}/codesuite/codecommit/repositories?region={region}"
+    with_id: "https://{region}.{host}/codesuite/codecommit/repositories/{id}/browse?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: repository page of --repository-name (branch and pull-request tabs are not evidenced)
+aws.codecommit.get-branch: *cc_repo
+aws.codecommit.create-branch: *cc_repo
+aws.codecommit.delete-branch: *cc_repo
+aws.codecommit.list-pull-requests: *cc_repo
+aws.codecommit.update-default-branch: *cc_repo
+
+aws.codecommit.create-repository:
+  intent:
+    verb: create
+    resource_type: AWS::CodeCommit::Repository
+    id_args: []
+  url:
+    best: "https://{region}.{host}/codesuite/codecommit/repository/create?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: create-repository wizard; the generated entry opened the not-yet-existing repository
+
+aws.codecommit.credential-helper: &cc_list
+  intent:
+    verb: list
+    resource_type: AWS::CodeCommit::Repository
+    id_args: []
+  url:
+    best: "https://{region}.{host}/codesuite/codecommit/repositories?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: repositories list (the git credential helper serves clones of these repositories)
+aws.codecommit.credential-helper.get: *cc_list
+aws.codecommit.credential-helper.store: *cc_list
+aws.codecommit.credential-helper.erase: *cc_list

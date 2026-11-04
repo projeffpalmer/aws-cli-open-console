@@ -1,0 +1,121 @@
+# Curated console pages for "aws lambda" (plan step 2.4, group W2).
+# Lambda is a regional console: https://{region}.{host}/lambda/home?region=...
+#
+# Evidence (2026-11-04):
+#   go/view?resourceType=AWS::Lambda::Function&resourceId=zz9idzz9
+#                     -> #/functions/zz9idzz9               (view-by-id.tsv)
+#   go/view?resourceType=AWS::Lambda::Function&resourceId=<function ARN>
+#                     -> #/functions/arn:aws:lambda:...:function:myfn (raw)
+#   go/view?arn=arn:aws:lambda:...:function:myfn:1 -> #/functions/<ARN>:1 (raw)
+#   go/list?resourceType=AWS::Lambda::Function    -> #/functions
+#   go/create?resourceType=AWS::Lambda::Function  -> #/create/function
+#   go/list?resourceType=AWS::Lambda::EventSourceMapping -> #/event-source-mappings
+#   go/view?arn=arn:aws:lambda:...:layer:mylayer   -> #/layers/mylayer
+#   go/view?arn=arn:aws:lambda:...:layer:mylayer:1 -> #/layers/mylayer/versions/1
+#   docs lambda/latest/dg/creating-deleting-layers.html links
+#     https://console.aws.amazon.com/lambda/home#/layers (layers list)
+# The resolver puts every --function-name form (name, ARN, qualified ARN)
+# into the fragment as typed, so function pages use {id:raw}; the generated
+# {id} would turn an ARN's colons into %3A.  Function tabs (?tab=code,
+# configure, monitoring, testing, versions, aliases) are produced neither by
+# the resolver nor by the AWS docs or reference projects, so none is used.
+# --layer-name accepts a name or a layer ARN; arn_resource cuts the ARN back
+# to the name ("layer:mylayer" -> "mylayer"), so the ARN variants go first.
+
+aws.lambda.get-function: &function_node
+  intent:
+    verb: view
+    resource_type: AWS::Lambda::Function
+    id_args: [--function-name]
+  url:
+    best: "https://{region}.{host}/lambda/home?region={region}#/functions"
+    with_id: "https://{region}.{host}/lambda/home?region={region}#/functions/{id:raw}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: function page with --function-name as typed (name or ARN, the resolver keeps it raw)
+aws.lambda.get-function-configuration: *function_node
+aws.lambda.update-function-configuration: *function_node
+aws.lambda.update-function-code: *function_node
+aws.lambda.delete-function: *function_node
+aws.lambda.invoke: *function_node
+aws.lambda.get-policy: *function_node
+aws.lambda.add-permission: *function_node
+aws.lambda.list-versions-by-function: *function_node
+aws.lambda.list-aliases: *function_node
+aws.lambda.create-event-source-mapping: *function_node
+aws.lambda.wait.function-active: *function_node
+aws.lambda.wait.function-active-v2: *function_node
+aws.lambda.wait.function-updated: *function_node
+aws.lambda.wait.function-updated-v2: *function_node
+aws.lambda.wait.function-exists: *function_node
+
+aws.lambda.create-function:
+  intent:
+    verb: create
+    resource_type: AWS::Lambda::Function
+    id_args: []
+  url:
+    best: "https://{region}.{host}/lambda/home?region={region}#/create/function"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: create-function wizard (go/create), also when --function-name is typed
+
+aws.lambda.list-layers:
+  intent:
+    verb: list
+    resource_type: AWS::Lambda::LayerVersion
+    id_args: []
+  url:
+    best: "https://{region}.{host}/lambda/home?region={region}#/layers"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: layers list, linked as lambda/home#/layers in the Lambda developer guide
+
+aws.lambda.get-layer-version:
+  intent:
+    verb: view
+    resource_type: AWS::Lambda::LayerVersion
+    id_args: []
+    params:
+      layer_from_arn: {arg: --layer-name, parse: arn_resource}
+      layer: {arg: --layer-name}
+      version: {arg: --version-number}
+  url:
+    best: "https://{region}.{host}/lambda/home?region={region}#/layers"
+    variants:
+      - when: [layer_from_arn, version]
+        template: "https://{region}.{host}/lambda/home?region={region}#/layers/{layer_from_arn}/versions/{version}"
+      - when: [layer, version]
+        template: "https://{region}.{host}/lambda/home?region={region}#/layers/{layer}/versions/{version}"
+      - when: [layer_from_arn]
+        template: "https://{region}.{host}/lambda/home?region={region}#/layers/{layer_from_arn}"
+      - when: [layer]
+        template: "https://{region}.{host}/lambda/home?region={region}#/layers/{layer}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: layer version page (go/view?arn= of a layer version ARN)
+
+aws.lambda.publish-layer-version: &layer_node
+  intent:
+    verb: view
+    resource_type: AWS::Lambda::LayerVersion
+    id_args: []
+    params:
+      layer_from_arn: {arg: --layer-name, parse: arn_resource}
+      layer: {arg: --layer-name}
+  url:
+    best: "https://{region}.{host}/lambda/home?region={region}#/layers"
+    variants:
+      - when: [layer_from_arn]
+        template: "https://{region}.{host}/lambda/home?region={region}#/layers/{layer_from_arn}"
+      - when: [layer]
+        template: "https://{region}.{host}/lambda/home?region={region}#/layers/{layer}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: layer page listing its versions (go/view?arn= of a layer ARN)
+aws.lambda.list-layer-versions: *layer_node

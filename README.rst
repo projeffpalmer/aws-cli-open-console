@@ -9,6 +9,23 @@ aws-cli
 
 This package provides a unified command line interface to Amazon Web Services.
 
+-----------------------------------
+This fork: open-the-console-to-this
+-----------------------------------
+
+This fork adds one global option, ``--in-console``, which opens the AWS
+Management Console page that matches a command instead of running it::
+
+    $ aws s3 ls --in-console
+
+The command's API operation is never called; the AWS CLI prints the console
+URL and opens it in your browser, signed in with the credentials the command
+would have used. Pages come from a database with an entry for every command,
+curated for common services and falling back to the service home page. Add
+``help`` (for example ``aws s3 ls help --in-console``) to open the
+documentation instead. Run ``aws help in-console`` for the full guide,
+including print-only mode for hosts without a browser.
+
 The aws-cli package works on Python versions:
 
 * 3.9.x

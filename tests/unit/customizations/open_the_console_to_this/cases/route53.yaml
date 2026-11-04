@@ -1,0 +1,61 @@
+# Cases for the curated "aws route53" nodes (scripts/console_db/overrides/route53.yaml).
+# Route 53 is global: the host has no region.  Sample ids Z0123456789ABC,
+# C0123456789ABC and the health check id come from view-samples.tsv and the probes.
+- argv: [route53, list-hosted-zones]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones"
+  source: curated
+- argv: [route53, list-hosted-zones-by-name, --dns-name, example.com]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones"
+  source: curated
+- argv: [route53, create-hosted-zone, --name, example.com, --caller-reference, "2026-11-04"]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones#CreateHostedZone"
+  source: curated
+- argv: [route53, get-hosted-zone, --id, Z0123456789ABC]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones#ListRecordSets/Z0123456789ABC"
+  source: curated
+- argv: [route53, get-hosted-zone, --id, /hostedzone/Z0123456789ABC]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones#ListRecordSets/Z0123456789ABC"
+  source: curated
+- argv: [route53, delete-hosted-zone, --id, Z0123456789ABC]
+  region: eu-west-1
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones#ListRecordSets/Z0123456789ABC"
+  source: curated
+- argv: [route53, update-hosted-zone-comment, --id, Z0123456789ABC, --comment, x]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones#ListRecordSets/Z0123456789ABC"
+  source: curated
+- argv: [route53, list-resource-record-sets, --hosted-zone-id, /hostedzone/Z0123456789ABC]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones#ListRecordSets/Z0123456789ABC"
+  source: curated
+- argv: [route53, change-resource-record-sets, --hosted-zone-id, Z0123456789ABC, --change-batch, "file://changes.json"]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones#ListRecordSets/Z0123456789ABC"
+  source: curated
+- argv: [route53, list-resource-record-sets]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones"
+  source: curated
+- argv: [route53, get-change, --id, C0123456789ABC]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones#Change/C0123456789ABC"
+  source: curated
+- argv: [route53, wait, resource-record-sets-changed, --id, /change/C0123456789ABC]
+  url: "https://console.aws.amazon.com/route53/v2/hostedzones#Change/C0123456789ABC"
+  source: curated
+- argv: [route53, list-health-checks]
+  url: "https://console.aws.amazon.com/route53/v2/healthchecks/home#/"
+  source: curated
+- argv: [route53, create-health-check, --caller-reference, "2026-11-04", --health-check-config, "file://hc.json"]
+  url: "https://console.aws.amazon.com/route53/v2/healthchecks/home#/create"
+  source: curated
+- argv: [route53, get-health-check, --health-check-id, abcdef11-2222-3333-4444-555555fedcba]
+  url: "https://console.aws.amazon.com/route53/v2/healthchecks/home#/details/abcdef11-2222-3333-4444-555555fedcba"
+  source: curated
+- argv: [route53, update-health-check, --health-check-id, abcdef11-2222-3333-4444-555555fedcba]
+  url: "https://console.aws.amazon.com/route53/v2/healthchecks/home#/details/abcdef11-2222-3333-4444-555555fedcba"
+  source: curated
+- argv: [route53, delete-health-check, --health-check-id, abcdef11-2222-3333-4444-555555fedcba]
+  url: "https://console.aws.amazon.com/route53/v2/healthchecks/home#/details/abcdef11-2222-3333-4444-555555fedcba"
+  source: curated
+- argv: [route53, get-health-check-status, --health-check-id, abcdef11-2222-3333-4444-555555fedcba]
+  url: "https://console.aws.amazon.com/route53/v2/healthchecks/home#/details/abcdef11-2222-3333-4444-555555fedcba"
+  source: curated
+- argv: [route53, get-health-check-last-failure-reason, --health-check-id, abcdef11-2222-3333-4444-555555fedcba]
+  url: "https://console.aws.amazon.com/route53/v2/healthchecks/home#/details/abcdef11-2222-3333-4444-555555fedcba"
+  source: curated

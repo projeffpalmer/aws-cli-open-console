@@ -1,0 +1,32 @@
+# Cases for scripts/console_db/overrides/cloudtrail.yaml.  Sample trail and
+# ARN from scripts/console_db/snapshots/view-samples.tsv.
+- argv: [cloudtrail, get-trail, --name, mytrail]
+  url: "https://us-west-2.console.aws.amazon.com/cloudtrailv2/home?region=us-west-2#/trails/mytrail"
+  source: curated
+- argv: [cloudtrail, get-trail, --name, "arn:aws:cloudtrail:us-west-2:123456789012:trail/mytrail"]
+  url: "https://us-west-2.console.aws.amazon.com/cloudtrailv2/home?region=us-west-2#/trails/arn:aws:cloudtrail:us-west-2:123456789012:trail/mytrail"
+  source: curated
+- argv: [cloudtrail, get-trail-status, --name, mytrail]
+  region: eu-west-1
+  url: "https://eu-west-1.console.aws.amazon.com/cloudtrailv2/home?region=eu-west-1#/trails/mytrail"
+  source: curated
+- argv: [cloudtrail, start-logging, --name, mytrail]
+  url: "https://us-west-2.console.aws.amazon.com/cloudtrailv2/home?region=us-west-2#/trails/mytrail"
+  source: curated
+- argv: [cloudtrail, stop-logging, --name, "arn:aws:cloudtrail:us-west-2:123456789012:trail/mytrail"]
+  url: "https://us-west-2.console.aws.amazon.com/cloudtrailv2/home?region=us-west-2#/trails/arn:aws:cloudtrail:us-west-2:123456789012:trail/mytrail"
+  source: curated
+- argv: [cloudtrail, create-trail, --name, mytrail, --s3-bucket-name, mybucket]
+  url: "https://us-west-2.console.aws.amazon.com/cloudtrailv2/home?region=us-west-2#/create"
+  source: curated
+- argv: [cloudtrail, validate-logs, --trail-arn, "arn:aws:cloudtrail:us-west-2:123456789012:trail/mytrail", --start-time, "2026-01-01T00:00:00Z"]
+  url: "https://us-west-2.console.aws.amazon.com/cloudtrailv2/home?region=us-west-2#/trails/arn:aws:cloudtrail:us-west-2:123456789012:trail/mytrail"
+  source: curated
+- argv: [cloudtrail, verify-query-results, --s3-bucket, mybucket, --s3-prefix, lake/]
+  url: "https://us-west-2.console.aws.amazon.com/cloudtrailv2/home?region=us-west-2#/lake/eventDataStores"
+  source: curated
+# Generated entries that stay.
+- argv: [cloudtrail, describe-trails]
+  url: "https://us-west-2.console.aws.amazon.com/cloudtrailv2/home?region=us-west-2#/trails"
+- argv: [cloudtrail, list-event-data-stores]
+  url: "https://us-west-2.console.aws.amazon.com/cloudtrailv2/home?region=us-west-2#/lake/eventDataStores"

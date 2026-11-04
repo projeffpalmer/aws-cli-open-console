@@ -1,0 +1,47 @@
+# Cases for scripts/console_db/overrides/cognito-idp.yaml.  Sample pool id
+# from scripts/console_db/snapshots/view-samples.tsv (us-west-2_AbCdEfGhI).
+- argv: [cognito-idp, create-user-pool, --pool-name, mypool]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/set-up-your-application?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, list-users, --user-pool-id, us-west-2_AbCdEfGhI]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/users?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, list-users]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, admin-get-user, --user-pool-id, us-west-2_AbCdEfGhI, --username, jdoe]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/users?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, admin-create-user, --user-pool-id, us-west-2_AbCdEfGhI, --username, jdoe]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/users?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, admin-delete-user, --user-pool-id, us-west-2_AbCdEfGhI, --username, jdoe]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/users?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, admin-disable-user, --user-pool-id, us-west-2_AbCdEfGhI, --username, jdoe]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/users?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, admin-enable-user, --user-pool-id, us-west-2_AbCdEfGhI, --username, jdoe]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/users?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, list-user-pool-clients, --user-pool-id, us-west-2_AbCdEfGhI]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/overview?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, describe-user-pool-client, --user-pool-id, us-west-2_AbCdEfGhI, --client-id, 1example23456789]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/overview?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, list-groups, --user-pool-id, eu-west-1_AbCdEfGhI]
+  region: eu-west-1
+  url: "https://eu-west-1.console.aws.amazon.com/cognito/v2/idp/user-pools/eu-west-1_AbCdEfGhI/overview?region=eu-west-1"
+  source: curated
+- argv: [cognito-idp, admin-list-groups-for-user, --user-pool-id, us-west-2_AbCdEfGhI, --username, jdoe]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/overview?region=us-west-2"
+  source: curated
+- argv: [cognito-idp, list-identity-providers, --user-pool-id, us-west-2_AbCdEfGhI]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/overview?region=us-west-2"
+  source: curated
+# Generated entries that stay.
+- argv: [cognito-idp, list-user-pools, --max-results, "20"]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools?region=us-west-2"
+- argv: [cognito-idp, describe-user-pool, --user-pool-id, us-west-2_AbCdEfGhI]
+  url: "https://us-west-2.console.aws.amazon.com/cognito/v2/idp/user-pools/us-west-2_AbCdEfGhI/overview?region=us-west-2"

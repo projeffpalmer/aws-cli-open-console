@@ -1,0 +1,132 @@
+# Curated console pages for "aws logs" (plan step 2.4, group W2).
+# CloudWatch Logs lives in the regional CloudWatch console:
+# https://{region}.{host}/cloudwatch/home?region=...#logsV2:...
+#
+# Evidence (2026-11-04):
+#   go/create?resourceType=AWS::Logs::LogGroup -> #logsV2:log-groups/create-log-group
+#   go/view?arn=arn:aws:logs:...:log-group:/aws/lambda/myfn
+#        -> #logsV2:log-groups/log-group/%2Faws%2Flambda%2Fmyfn (view-samples.tsv)
+#   go/view?arn=arn:aws:logs:...:log-group:/aws/lambda/myfn:log-stream:2026/01/01/[$LATEST]abc
+#        -> #logsV2:log-groups/log-group/%2Faws%2Flambda%2Fmyfn/log-events/2026%2F01%2F01%2F%5B%24LATEST%5Dabc
+# The default {name} (path) encoding produces exactly those %2F / %5B / %24
+# escapes, so group and stream names use it.  --log-group-identifier,
+# --log-group-identifiers and tail's group_name take a name or an ARN;
+# arn_resource cuts "log-group:/aws/lambda/myfn" back to the name, so the
+# ARN variants go first.  go/list for log groups, Logs Insights, Live Tail and
+# metric filters land on the bare /cloudwatch/home, and no AWS doc page or
+# reference project shows their fragments, so describe-log-groups,
+# start-query, get-query-results and describe-queries keep their generated
+# entries and the no-group fallback is the CloudWatch home.
+# RC-B (2026-11-04): a log-group ARN with a trailing ":*" (go/view?arn= of it
+# -> .../log-group/%2Faws%2Flambda%2Fmyfn) is not curated: arn_resource keeps
+# the ":*" and strip_wildcard_suffix keeps the ARN prefix, so the group name
+# needs two parse steps and a param takes one.
+
+aws.logs.describe-log-streams: &group_node
+  intent:
+    verb: view
+    resource_type: AWS::Logs::LogGroup
+    id_args: []
+    params:
+      group: {arg: --log-group-name}
+      group_from_arn: {arg: --log-group-identifier, parse: arn_resource}
+      group_identifier: {arg: --log-group-identifier}
+  url:
+    best: "https://{region}.{host}/cloudwatch/home"
+    variants:
+      - when: [group]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group}"
+      - when: [group_from_arn]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group_from_arn}"
+      - when: [group_identifier]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group_identifier}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: log group page (streams list) from --log-group-name or --log-group-identifier
+aws.logs.filter-log-events: *group_node
+aws.logs.put-retention-policy: *group_node
+aws.logs.put-metric-filter: *group_node
+aws.logs.describe-metric-filters: *group_node
+
+aws.logs.get-log-events:
+  intent:
+    verb: view
+    resource_type: AWS::Logs::LogStream
+    id_args: []
+    params:
+      group: {arg: --log-group-name}
+      group_from_arn: {arg: --log-group-identifier, parse: arn_resource}
+      group_identifier: {arg: --log-group-identifier}
+      stream: {arg: --log-stream-name}
+  url:
+    best: "https://{region}.{host}/cloudwatch/home"
+    variants:
+      - when: [group, stream]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group}/log-events/{stream}"
+      - when: [group_from_arn, stream]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group_from_arn}/log-events/{stream}"
+      - when: [group_identifier, stream]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group_identifier}/log-events/{stream}"
+      - when: [group]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group}"
+      - when: [group_from_arn]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group_from_arn}"
+      - when: [group_identifier]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group_identifier}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: log events of the stream (go/view of a log-stream ARN); group page without a stream
+
+aws.logs.create-log-group:
+  intent:
+    verb: create
+    resource_type: AWS::Logs::LogGroup
+    id_args: []
+  url:
+    best: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/create-log-group"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: create-log-group wizard (go/create), also when --log-group-name is typed
+
+aws.logs.tail:
+  intent:
+    verb: view
+    resource_type: AWS::Logs::LogGroup
+    id_args: []
+    params:
+      group_from_arn: {arg: group_name, parse: arn_resource}
+      group: {arg: group_name}
+  url:
+    best: "https://{region}.{host}/cloudwatch/home"
+    variants:
+      - when: [group_from_arn]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group_from_arn}"
+      - when: [group]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: the tailed log group's page (positional group_name, name or ARN)
+
+aws.logs.start-live-tail:
+  intent:
+    verb: view
+    resource_type: AWS::Logs::LogGroup
+    id_args: []
+    params:
+      group_from_arn: {arg: --log-group-identifiers, parse: arn_resource}
+      group: {arg: --log-group-identifiers}
+  url:
+    best: "https://{region}.{host}/cloudwatch/home"
+    variants:
+      - when: [group_from_arn]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group_from_arn}"
+      - when: [group]
+        template: "https://{region}.{host}/cloudwatch/home?region={region}#logsV2:log-groups/log-group/{group}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: page of the first --log-group-identifiers group (ARN or name); Live Tail page unevidenced

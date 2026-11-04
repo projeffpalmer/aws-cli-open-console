@@ -97,6 +97,11 @@
                 "enhanced"
             ],
             "help": "<p>The formatting style for error output. By default, errors are displayed in enhanced format.</p>"
+        },
+        "in-console": {
+            "action": "store_true",
+            "dest": "in_console",
+            "help": "<p>Do not run the command. Open the AWS Management Console page that best matches it instead, signed in with the credentials the command would have used, and print the URL. With <code>help</code>, open the documentation instead.</p>"
         }
     }
 }

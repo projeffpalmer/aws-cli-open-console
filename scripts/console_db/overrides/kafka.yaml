@@ -1,0 +1,35 @@
+# Curated console pages for "aws kafka" (plan step 2.4, curator W5).
+# Amazon MSK is regional: https://{region}.{host}/msk/home?region={region}#/...
+#
+# Evidence (2026-11-04):
+#   go/view?arn=arn:aws:kafka:us-west-2:123456789012:cluster/mycluster/uuid
+#       -> #/cluster/arn%3Aaws%3Akafka%3Aus-west-2%3A123456789012%3Acluster%2Fmycluster%2Fuuid/view?tabId=details
+#   view-by-id AWS::MSK::Cluster -> #/cluster/<id>/view?tabId=details
+#   go/create AWS::MSK::Cluster  -> #/cluster/create?isProvisionedCreate=true
+# The resolver percent-encodes the cluster ARN (":" -> %3A, "/" -> %2F),
+# which is the default {id} (path) encoding; the generated {id:raw} left
+# the ARN unencoded.  create-cluster(-v2) had a with_id on --cluster-name,
+# which is not an ARN.  list-clusters(-v2) are already right.
+
+aws.kafka.describe-cluster: &cluster_view
+  intent: {verb: view, resource_type: AWS::MSK::Cluster, id_args: [--cluster-arn]}
+  url:
+    best: "https://{region}.{host}/msk/home?region={region}#/clusters"
+    with_id: "https://{region}.{host}/msk/home?region={region}#/cluster/{id}/view?tabId=details"
+    source: curated
+    verified: "2026-11-04"
+    note: cluster details tab; the ARN is URL-encoded as the resolver does
+
+aws.kafka.describe-cluster-v2: *cluster_view
+aws.kafka.list-nodes: *cluster_view
+aws.kafka.get-bootstrap-brokers: *cluster_view
+
+aws.kafka.create-cluster: &cluster_create
+  intent: {verb: create, resource_type: AWS::MSK::Cluster, id_args: []}
+  url:
+    best: "https://{region}.{host}/msk/home?region={region}#/cluster/create?isProvisionedCreate=true"
+    source: curated
+    verified: "2026-11-04"
+    note: create-cluster wizard (go/create); --cluster-name is the new cluster
+
+aws.kafka.create-cluster-v2: *cluster_create

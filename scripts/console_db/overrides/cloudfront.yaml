@@ -1,0 +1,132 @@
+# Curated console pages for "aws cloudfront" (plan step 2.4, group W4).
+# CloudFront is a global console: every template uses https://{host}/...
+#
+# Evidence (2026-11-04):
+#   go/list?resourceType=AWS::CloudFront::Distribution -> <r>.console.../cloudfront/v4/home#/distributions
+#   go/create?resourceType=AWS::CloudFront::Distribution -> .../cloudfront/v4/home?region=<r>#/distributions/create
+#   go/view?resourceType=AWS::CloudFront::Distribution&resourceId=zz9idzz9
+#     and go/view?arn=...:distribution/E1234567890ABC -> https://console.../cloudfront/v3/home#/distributions/<id>
+#   go/list AWS::CloudFront::CachePolicy -> v4/home?region=<r>#/policies/cache
+#   go/list AWS::CloudFront::CloudFrontOriginAccessIdentity -> v4/home#/originAccess
+#     (origin access controls share that page; go/view of an OAC gives v4/home)
+#   go/list AWS::CloudFront::Function -> v3/home#/functions; go/view -> v3/home#/functions/<name>
+# The resolver puts list and create pages on a regional host; the global host
+# form is used here (path-only).  Invalidation tabs are not evidenced, so the
+# invalidation operations open the distribution page.  sign and sign-cookies
+# (key pairs, key groups) have no evidenced page and keep their entries.
+
+aws.cloudfront.list-distributions:
+  intent:
+    verb: list
+    resource_type: AWS::CloudFront::Distribution
+    id_args: []
+  url:
+    best: "https://{host}/cloudfront/v4/home#/distributions"
+    source: curated
+    verified: path-only
+    note: distributions list on the global host
+
+aws.cloudfront.create-distribution: &cf_create
+  intent:
+    verb: create
+    resource_type: AWS::CloudFront::Distribution
+    id_args: []
+  url:
+    best: "https://{host}/cloudfront/v4/home#/distributions/create"
+    source: curated
+    verified: path-only
+    note: create-distribution wizard on the global host
+aws.cloudfront.create-distribution-with-tags: *cf_create
+
+aws.cloudfront.get-distribution: &cf_dist
+  intent:
+    verb: view
+    resource_type: AWS::CloudFront::Distribution
+    id_args: [--id]
+  url:
+    best: "https://{host}/cloudfront/v4/home#/distributions"
+    with_id: "https://{host}/cloudfront/v3/home#/distributions/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: distribution page of --id
+aws.cloudfront.get-distribution-config: *cf_dist
+aws.cloudfront.update-distribution: *cf_dist
+aws.cloudfront.delete-distribution: *cf_dist
+aws.cloudfront.wait.distribution-deployed: *cf_dist
+
+aws.cloudfront.create-invalidation: &cf_inval
+  intent:
+    verb: view
+    resource_type: AWS::CloudFront::Distribution
+    id_args: [--distribution-id]
+  url:
+    best: "https://{host}/cloudfront/v4/home#/distributions"
+    with_id: "https://{host}/cloudfront/v3/home#/distributions/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: distribution page of --distribution-id (the invalidations tab is not evidenced)
+aws.cloudfront.list-invalidations: *cf_inval
+aws.cloudfront.get-invalidation: *cf_inval
+aws.cloudfront.wait.invalidation-completed: *cf_inval
+
+aws.cloudfront.list-cache-policies:
+  intent:
+    verb: list
+    resource_type: AWS::CloudFront::CachePolicy
+    id_args: []
+  url:
+    best: "https://{host}/cloudfront/v4/home#/policies/cache"
+    source: curated
+    verified: path-only
+    note: cache policies list on the global host
+
+aws.cloudfront.get-cache-policy: &cf_cache
+  intent:
+    verb: view
+    resource_type: AWS::CloudFront::CachePolicy
+    id_args: [--id]
+  url:
+    best: "https://{host}/cloudfront/v4/home#/policies/cache"
+    with_id: "https://{host}/cloudfront/v3/home#/policies/cache/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: cache policy page of --id
+aws.cloudfront.get-cache-policy-config: *cf_cache
+
+aws.cloudfront.list-origin-access-controls:
+  intent:
+    verb: list
+    resource_type: AWS::CloudFront::OriginAccessControl
+    id_args: []
+  url:
+    best: "https://{host}/cloudfront/v4/home#/originAccess"
+    source: curated
+    verified: path-only
+    note: origin access page (go/list of origin access identities; controls are listed there too)
+
+aws.cloudfront.list-functions:
+  intent:
+    verb: list
+    resource_type: AWS::CloudFront::Function
+    id_args: []
+  url:
+    best: "https://{host}/cloudfront/v3/home#/functions"
+    source: curated
+    verified: path-only
+    note: functions list on the global host
+
+aws.cloudfront.describe-function: &cf_fn
+  intent:
+    verb: view
+    resource_type: AWS::CloudFront::Function
+    id_args: [--name]
+  url:
+    best: "https://{host}/cloudfront/v3/home#/functions"
+    with_id: "https://{host}/cloudfront/v3/home#/functions/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: function page of --name
+aws.cloudfront.get-function: *cf_fn
+aws.cloudfront.update-function: *cf_fn
+aws.cloudfront.publish-function: *cf_fn
+aws.cloudfront.test-function: *cf_fn

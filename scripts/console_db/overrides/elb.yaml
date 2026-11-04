@@ -1,0 +1,61 @@
+# Curated console pages for "aws elb" (Classic Load Balancers; plan step
+# 2.4/2.5, group W1).  Evidence, 2026-11-04: a live GET of
+# go/view?arn=arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/my-elb
+# answers 302 to /ec2/home?region=us-west-2#LoadBalancer:loadBalancerArn=my-elb,
+# so the resolver addresses a Classic Load Balancer by its name in the
+# same page the v2 load balancers use.  The list page is the tier-1 entry
+# (go/list AWS::ElasticLoadBalancing::LoadBalancer).  Every template here
+# is the resolver's exact shape.  The generated "create-load-balancer"
+# entry (list page; no classic create page is evidenced) is kept.
+
+aws.elb.describe-load-balancers:
+  intent:
+    verb: list
+    resource_type: AWS::ElasticLoadBalancing::LoadBalancer
+    id_args: [--load-balancer-names]
+  url: &clb_url
+    best: "https://{region}.{host}/ec2/v2/home?region={region}#LoadBalancers:sort=loadBalancerName"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#LoadBalancer:loadBalancerArn={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: Classic Load Balancer page by name (go/view?arn=...:loadbalancer/<name>); several names open the list
+
+aws.elb.describe-instance-health:
+  intent: &clb_intent
+    verb: view
+    resource_type: AWS::ElasticLoadBalancing::LoadBalancer
+    id_args: [--load-balancer-name]
+  url: &clb_one_url
+    best: "https://{region}.{host}/ec2/v2/home?region={region}#LoadBalancers:sort=loadBalancerName"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#LoadBalancer:loadBalancerArn={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: the Classic Load Balancer's page, which lists its instances (tab not evidenced)
+
+aws.elb.register-instances-with-load-balancer:
+  intent: *clb_intent
+  url: *clb_one_url
+
+aws.elb.deregister-instances-from-load-balancer:
+  intent: *clb_intent
+  url: *clb_one_url
+
+aws.elb.configure-health-check:
+  intent: *clb_intent
+  url: *clb_one_url
+
+aws.elb.describe-load-balancer-attributes:
+  intent: *clb_intent
+  url: *clb_one_url
+
+aws.elb.wait.any-instance-in-service:
+  intent: *clb_intent
+  url: *clb_one_url
+
+aws.elb.wait.instance-in-service:
+  intent: *clb_intent
+  url: *clb_one_url
+
+aws.elb.wait.instance-deregistered:
+  intent: *clb_intent
+  url: *clb_one_url

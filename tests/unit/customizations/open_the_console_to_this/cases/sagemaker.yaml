@@ -1,0 +1,40 @@
+# Cases for scripts/console_db/overrides/sagemaker.yaml.  Sample names from
+# scripts/console_db/snapshots/view-samples.tsv (myendpoint, mynb) and the
+# go/view?arn= probes (mytj, mypj, mymodel).
+- argv: [sagemaker, create-endpoint, --endpoint-name, myendpoint, --endpoint-config-name, myec]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/endpoints/create"
+  source: curated
+- argv: [sagemaker, list-training-jobs]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/jobs"
+  source: curated
+- argv: [sagemaker, describe-training-job, --training-job-name, mytj]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/jobs/mytj"
+  source: curated
+- argv: [sagemaker, stop-training-job, --training-job-name, mytj]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/jobs/mytj"
+  source: curated
+- argv: [sagemaker, wait, training-job-completed-or-stopped, --training-job-name, mytj]
+  region: eu-west-1
+  url: "https://eu-west-1.console.aws.amazon.com/sagemaker/home?region=eu-west-1#/jobs/mytj"
+  source: curated
+- argv: [sagemaker, create-training-job, --training-job-name, mytj, --role-arn, "arn:aws:iam::123456789012:role/myrole"]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/jobs"
+  source: curated
+- argv: [sagemaker, list-processing-jobs]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/processing-jobs"
+  source: curated
+- argv: [sagemaker, describe-processing-job, --processing-job-name, mypj]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/processing-jobs/mypj"
+  source: curated
+- argv: [sagemaker, wait, processing-job-completed-or-stopped, --processing-job-name, mypj]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/processing-jobs/mypj"
+  source: curated
+# Generated entries that stay.
+- argv: [sagemaker, describe-endpoint, --endpoint-name, myendpoint]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/endpoints/myendpoint"
+- argv: [sagemaker, wait, endpoint-in-service, --endpoint-name, myendpoint]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/endpoints/myendpoint"
+- argv: [sagemaker, describe-notebook-instance, --notebook-instance-name, mynb]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/notebook-instances/mynb"
+- argv: [sagemaker, describe-model, --model-name, mymodel]
+  url: "https://us-west-2.console.aws.amazon.com/sagemaker/home?region=us-west-2#/models/mymodel"

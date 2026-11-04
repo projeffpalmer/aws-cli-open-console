@@ -1,0 +1,75 @@
+# Cases for the curated "aws ecr" nodes (scripts/console_db/overrides/ecr.yaml).
+# Sample repository myrepo comes from view-samples.tsv.
+- argv: [ecr, describe-repositories]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/private-registry/repositories?region=us-west-2"
+  source: curated
+- argv: [ecr, describe-repositories, --repository-names, myrepo]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, describe-repositories, --repository-names, myrepo, otherrepo]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/private-registry/repositories?region=us-west-2"
+  source: curated
+- argv: [ecr, batch-get-repository-scanning-configuration, --repository-names, myrepo]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, set-repository-policy, --repository-name, myrepo, --policy-text, "file://policy.json"]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, delete-repository-policy, --repository-name, myrepo]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, create-repository, --repository-name, myrepo]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/private-registry/repositories/create?region=us-west-2"
+  source: curated
+- argv: [ecr, delete-repository, --repository-name, myrepo, --force]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, get-repository-policy, --repository-name, myrepo]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, describe-images, --repository-name, myrepo]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, describe-images, --repository-name, team/myrepo]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/team%2Fmyrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, describe-images]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/private-registry/repositories?region=us-west-2"
+  source: curated
+- argv: [ecr, list-images, --repository-name, myrepo]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, batch-delete-image, --repository-name, myrepo, --image-ids, imageTag=v1]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, batch-get-image, --repository-name, myrepo, --image-ids, imageTag=v1]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, put-image, --repository-name, myrepo, --image-tag, v1, --image-manifest, "file://manifest.json"]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, start-image-scan, --repository-name, myrepo, --image-id, imageTag=v1]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, describe-image-scan-findings, --repository-name, myrepo, --image-id, imageTag=v1]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, wait, image-scan-complete, --repository-name, myrepo, --image-id, imageTag=v1]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, wait, lifecycle-policy-preview-complete, --repository-name, myrepo]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/repositories/myrepo?region=us-west-2"
+  source: curated
+- argv: [ecr, get-login-password]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/private-registry/repositories?region=us-west-2"
+  source: curated
+- argv: [ecr, get-login-password]
+  region: ap-southeast-2
+  url: "https://ap-southeast-2.console.aws.amazon.com/ecr/private-registry/repositories?region=ap-southeast-2"
+  source: curated
+- argv: [ecr, get-authorization-token]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/private-registry/repositories?region=us-west-2"
+  source: curated
+- argv: [ecr, describe-registry]
+  url: "https://us-west-2.console.aws.amazon.com/ecr/private-registry/repositories?region=us-west-2"
+  source: curated

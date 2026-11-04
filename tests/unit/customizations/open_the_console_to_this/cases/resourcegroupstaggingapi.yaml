@@ -1,0 +1,17 @@
+# Cases for scripts/console_db/overrides/resourcegroupstaggingapi.yaml.
+- argv: [resourcegroupstaggingapi, get-resources, --tag-filters, "Key=env,Values=prod"]
+  url: "https://us-west-2.console.aws.amazon.com/resource-groups/tag-editor?region=us-west-2"
+  source: curated
+- argv: [resourcegroupstaggingapi, tag-resources, --resource-arn-list, "arn:aws:sns:us-west-2:123456789012:mytopic", --tags, env=prod]
+  url: "https://us-west-2.console.aws.amazon.com/resource-groups/tag-editor?region=us-west-2"
+  source: curated
+- argv: [resourcegroupstaggingapi, untag-resources, --resource-arn-list, "arn:aws:sns:us-west-2:123456789012:mytopic", --tag-keys, env]
+  region: eu-west-1
+  url: "https://eu-west-1.console.aws.amazon.com/resource-groups/tag-editor?region=eu-west-1"
+  source: curated
+- argv: [resourcegroupstaggingapi, get-tag-keys]
+  url: "https://us-west-2.console.aws.amazon.com/resource-groups/tag-editor?region=us-west-2"
+  source: curated
+- argv: [resourcegroupstaggingapi, get-tag-values, --key, env]
+  url: "https://us-west-2.console.aws.amazon.com/resource-groups/tag-editor?region=us-west-2"
+  source: curated

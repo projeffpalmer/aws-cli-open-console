@@ -1,0 +1,70 @@
+# Cases for the curated "aws apigatewayv2" nodes (scripts/console_db/overrides/apigatewayv2.yaml).
+# Sample API id abc123, stage prod, route r1 and domain api.example.com come from the probes.
+- argv: [apigatewayv2, get-apis]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/apis?region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, create-api, --name, myapi, --protocol-type, HTTP]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/precreate?region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, get-api, --api-id, abc123]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/api-detail?api=abc123&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, update-api, --api-id, abc123, --name, myapi]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/api-detail?api=abc123&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, delete-api, --api-id, abc123]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/api-detail?api=abc123&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, get-routes, --api-id, abc123]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/develop/routes?api=abc123&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, create-route, --api-id, abc123, --route-key, "GET /items"]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/develop/routes?api=abc123&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, get-route, --api-id, abc123, --route-id, r1]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/develop/routes?api=abc123&region=us-west-2&routes=r1"
+  source: curated
+- argv: [apigatewayv2, update-route, --api-id, abc123, --route-id, r1]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/develop/routes?api=abc123&region=us-west-2&routes=r1"
+  source: curated
+- argv: [apigatewayv2, delete-route, --api-id, abc123, --route-id, r1]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/develop/routes?api=abc123&region=us-west-2&routes=r1"
+  source: curated
+- argv: [apigatewayv2, get-stages, --api-id, abc123]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/deploy/stages?api=abc123&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, create-stage, --api-id, abc123, --stage-name, prod]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/deploy/stages?api=abc123&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, get-stage, --api-id, abc123, --stage-name, prod]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/deploy/stages?api=abc123&region=us-west-2&stage=prod"
+  source: curated
+- argv: [apigatewayv2, update-stage, --api-id, abc123, --stage-name, prod]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/deploy/stages?api=abc123&region=us-west-2&stage=prod"
+  source: curated
+- argv: [apigatewayv2, delete-stage, --api-id, abc123, --stage-name, prod]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/deploy/stages?api=abc123&region=us-west-2&stage=prod"
+  source: curated
+- argv: [apigatewayv2, get-integrations, --api-id, abc123]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/develop/integrations/list?api=abc123&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, get-integration, --api-id, abc123, --integration-id, i1]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/develop/integrations/list?api=abc123&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, create-integration, --api-id, abc123, --integration-type, HTTP_PROXY]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/develop/integrations/list?api=abc123&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, get-domain-names]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/publish/domain-names?region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, get-domain-name, --domain-name, api.example.com]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/publish/domain-names?domain=api.example.com&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, update-domain-name, --domain-name, api.example.com]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/publish/domain-names?domain=api.example.com&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, delete-domain-name, --domain-name, api.example.com]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/publish/domain-names?domain=api.example.com&region=us-west-2"
+  source: curated
+- argv: [apigatewayv2, get-deployments, --api-id, abc123]
+  url: "https://us-west-2.console.aws.amazon.com/apigateway/main/deploy/stages?api=abc123&region=us-west-2"

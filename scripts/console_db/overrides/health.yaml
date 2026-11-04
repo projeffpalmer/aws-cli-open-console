@@ -1,0 +1,26 @@
+# Curated console pages for "aws health" (plan step 2.4, curator W5).
+# AWS Health is on the special host health.console.aws.amazon.com.
+#
+# Evidence (2026-11-04):
+#   go/view?arn=arn:aws:health:us-east-1::event/EC2/AWS_EC2_OPERATIONAL_ISSUE/AWS_EC2_OPERATIONAL_ISSUE_ABC
+#       -> https://health.console.aws.amazon.com/health/home#/account/event-log?eventID=<arn> (raw)
+# The event log without eventID is that page's prefix (path-only).  Not
+# curated: describe-affected-entities (its event ARNs sit inside the
+# --filter structure, which no parse function reads).
+
+aws.health.describe-events:
+  intent: {verb: list, resource_type: null, id_args: []}
+  url:
+    best: "https://health.console.aws.amazon.com/health/home#/account/event-log"
+    source: curated
+    verified: path-only
+    note: account event log
+
+aws.health.describe-event-details:
+  intent: {verb: view, resource_type: null, id_args: [--event-arns]}
+  url:
+    best: "https://health.console.aws.amazon.com/health/home#/account/event-log"
+    with_id: "https://health.console.aws.amazon.com/health/home#/account/event-log?eventID={id:raw}"
+    source: curated
+    verified: "2026-11-04"
+    note: the event in the event log (go/view?arn= of a health event)

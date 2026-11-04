@@ -1,0 +1,57 @@
+# Curated Firewall Manager list pages: the resolver's list target is dead
+# on the regional host (scripts/console_db/review/verify-report.md).
+#
+# Evidence (2026-11-04, unauthenticated GET, no redirect following):
+#   go/list?resourceType=AWS::FMS::Policy&region=us-west-2
+#     -> https://us-west-2.console.aws.amazon.com/wafv2/fmsv2/policies?region=us-west-2
+#   go/list?resourceType=AWS::FMS::ResourceSet&region=us-west-2
+#     -> https://us-west-2.console.aws.amazon.com/wafv2/fmsv2/resourcesets?region=us-west-2
+#   both paths answer 404 on us-west-2.console.aws.amazon.com and 302 to
+#   the same path on us-east-1.console.aws.amazon.com (200) from
+#   console.aws.amazon.com.
+# The resolver's own detail pages (snapshots/view-by-id.tsv) already use
+# the global host: /wafv2/fmsv2/policies/<id>?region=<r> and
+# /wafv2/fmsv2/resourceset/detailView/<id>?region=<r>; the with_id
+# templates below are those generated ones, unchanged.
+
+aws.fms.list-policies:
+  url: &policies
+    best: "https://{host}/wafv2/fmsv2/policies?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: resolver policy list on the global host; the regional host answers 404
+aws.fms.list-third-party-firewall-firewall-policies:
+  url: *policies
+aws.fms.put-policy:
+  url: *policies
+
+aws.fms.get-policy:
+  url: &policy
+    best: "https://{host}/wafv2/fmsv2/policies?region={region}"
+    with_id: "https://{host}/wafv2/fmsv2/policies/{id}?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: resolver policy list on the global host; the regional host answers 404
+aws.fms.delete-policy:
+  url: *policy
+
+aws.fms.list-resource-sets:
+  url: &resourcesets
+    best: "https://{host}/wafv2/fmsv2/resourcesets?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: resolver resource set list on the global host; the regional host answers 404
+aws.fms.put-resource-set:
+  url: *resourcesets
+
+aws.fms.get-resource-set:
+  url: &resourceset
+    best: "https://{host}/wafv2/fmsv2/resourcesets?region={region}"
+    with_id: "https://{host}/wafv2/fmsv2/resourceset/detailView/{id}?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: resolver resource set list on the global host; the regional host answers 404
+aws.fms.delete-resource-set:
+  url: *resourceset
+aws.fms.list-resource-set-resources:
+  url: *resourceset

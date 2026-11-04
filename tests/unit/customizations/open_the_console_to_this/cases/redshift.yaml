@@ -1,0 +1,15 @@
+# Cases for scripts/console_db/overrides/redshift.yaml (curator W3) plus
+# generated entries that were reviewed and kept.  Sample cluster mycluster
+# comes from view-samples.tsv.
+- argv: [redshift, describe-clusters]
+  url: "https://us-west-2.console.aws.amazon.com/redshiftv2/home?region=us-west-2#clusters"
+  source: resolver:list+view
+- argv: [redshift, describe-clusters, --cluster-identifier, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/redshiftv2/home?region=us-west-2#cluster-details:cluster=mycluster"
+- argv: [redshift, resize-cluster, --cluster-identifier, mycluster, --number-of-nodes, "4"]
+  url: "https://us-west-2.console.aws.amazon.com/redshiftv2/home?region=us-west-2#cluster-details:cluster=mycluster"
+- argv: [redshift, describe-cluster-snapshots, --cluster-identifier, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/redshiftv2/home?region=us-west-2#cluster-details:cluster=mycluster"
+- argv: [redshift, create-cluster, --cluster-identifier, mycluster, --node-type, ra3.xlplus, --master-username, admin]
+  url: "https://us-west-2.console.aws.amazon.com/redshiftv2/home?region=us-west-2#/create-cluster"
+  source: curated

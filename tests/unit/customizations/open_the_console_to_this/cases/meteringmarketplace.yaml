@@ -1,0 +1,6 @@
+# Cases for the curated tier-1 "aws meteringmarketplace" (scripts/console_db/
+# overrides/meteringmarketplace.yaml): the Marketplace page on the global host.
+
+- argv: [meteringmarketplace]
+  url: "https://console.aws.amazon.com/marketplace/subscriptions?region=us-west-2"
+  source: curated

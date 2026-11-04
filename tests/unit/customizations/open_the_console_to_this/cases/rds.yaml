@@ -1,0 +1,90 @@
+# Cases for scripts/console_db/overrides/rds.yaml (curator W3) plus
+# generated entries that were reviewed and kept.  Sample ids mydb,
+# mycluster and mysnap come from view-samples.tsv and the live probes.
+
+# Kept generated entries: instances.
+- argv: [rds, describe-db-instances]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#databases:"
+  source: resolver:list+view
+- argv: [rds, describe-db-instances, --db-instance-identifier, mydb]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mydb;is-cluster=false"
+- argv: [rds, stop-db-instance, --db-instance-identifier, mydb]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mydb;is-cluster=false"
+- argv: [rds, wait, db-instance-available, --db-instance-identifier, mydb]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mydb;is-cluster=false"
+- argv: [rds, describe-db-subnet-groups, --db-subnet-group-name, mysub]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#db-subnet-group:id=mysub"
+
+# Create wizards.
+- argv: [rds, create-db-instance, --db-instance-identifier, mydb, --engine, postgres]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#launch-dbinstance:"
+  source: curated
+- argv: [rds, create-db-cluster, --db-cluster-identifier, mycluster, --engine, aurora-postgresql]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#launch-dbinstance:"
+  source: curated
+
+# Clusters.
+- argv: [rds, describe-db-clusters]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#databases:"
+  source: curated
+- argv: [rds, describe-db-clusters, --db-cluster-identifier, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mycluster;is-cluster=true"
+  source: curated
+- argv: [rds, modify-db-cluster, --db-cluster-identifier, mycluster, --apply-immediately]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mycluster;is-cluster=true"
+  source: curated
+- argv: [rds, delete-db-cluster, --db-cluster-identifier, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mycluster;is-cluster=true"
+  source: curated
+- argv: [rds, start-db-cluster, --db-cluster-identifier, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mycluster;is-cluster=true"
+  source: curated
+- argv: [rds, stop-db-cluster, --db-cluster-identifier, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mycluster;is-cluster=true"
+  source: curated
+- argv: [rds, wait, db-cluster-available, --db-cluster-identifier, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mycluster;is-cluster=true"
+  source: curated
+- argv: [rds, wait, db-cluster-deleted, --db-cluster-identifier, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mycluster;is-cluster=true"
+  source: curated
+
+# Snapshots.
+- argv: [rds, describe-db-snapshots, --db-snapshot-identifier, mysnap]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#db-snapshot:id=mysnap"
+  source: curated
+- argv: [rds, describe-db-snapshots, --db-instance-identifier, mydb]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mydb;is-cluster=false"
+  source: curated
+- argv: [rds, describe-db-snapshots]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home"
+  source: curated
+- argv: [rds, create-db-snapshot, --db-snapshot-identifier, mysnap, --db-instance-identifier, mydb]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mydb;is-cluster=false"
+  source: curated
+- argv: [rds, describe-db-cluster-snapshots, --db-cluster-snapshot-identifier, mysnap]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#db-snapshot:id=mysnap"
+  source: curated
+- argv: [rds, describe-db-cluster-snapshots, --db-cluster-identifier, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#database:id=mycluster;is-cluster=true"
+  source: curated
+- argv: [rds, wait, db-snapshot-available, --db-snapshot-identifier, mysnap]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#db-snapshot:id=mysnap"
+  source: curated
+- argv: [rds, wait, db-snapshot-completed, --db-snapshot-identifier, mysnap]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#db-snapshot:id=mysnap"
+  source: curated
+- argv: [rds, wait, db-snapshot-deleted, --db-snapshot-identifier, mysnap]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#db-snapshot:id=mysnap"
+  source: curated
+- argv: [rds, wait, db-cluster-snapshot-available, --db-cluster-snapshot-identifier, mysnap]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#db-snapshot:id=mysnap"
+  source: curated
+- argv: [rds, wait, db-cluster-snapshot-deleted, --db-cluster-snapshot-identifier, mysnap]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#db-snapshot:id=mysnap"
+  source: curated
+
+# Custom subcommand.
+- argv: [rds, generate-db-auth-token, --hostname, mydb.example.us-west-2.rds.amazonaws.com, --port, "5432", --username, admin]
+  url: "https://us-west-2.console.aws.amazon.com/rds/home?region=us-west-2#databases:"
+  source: curated

@@ -1,0 +1,295 @@
+# Curated console pages for "aws ec2" (plan step 2.4/2.5, group W1).
+# Evidence, 2026-11-04: snapshots/types.tsv (list and create pages),
+# snapshots/view-by-id.tsv (detail pages, sentinel zz9idzz9),
+# snapshots/view-samples.tsv and live GETs of the console resolver
+# (go/view?arn= for image, snapshot, reserved-instances,
+# spot-instances-request, placement-group and key-pair ARNs).
+# "2026-11-04" marks a template the resolver produced exactly;
+# "path-only" marks a list fragment cut down from a resolver URL that
+# carried a filter (#Snapshots:snapshotId=..., #ReservedInstances:
+# reservedInstancesId=...), so only the host and path were checked.
+# No with_ids anywhere: the comma form of the EC2 list filters
+# (#Instances:instanceId=i-1,i-2) is not evidenced; several ids open the
+# list page.  Nodes not listed here keep their generated entries, which
+# were reviewed and are right (describe-instances, start/stop/reboot/
+# terminate-instances, run-instances, describe-vpcs/subnets/route-tables/
+# internet-gateways/nat-gateways/network-acls/vpc-endpoints/
+# transit-gateways/volumes/network-interfaces, create-volume, create-vpc,
+# attach-volume and the instance, volume, vpc and gateway waiters).
+
+# --- Security groups (VPC console, resolver list + view) ---------------
+
+aws.ec2.describe-security-groups:
+  intent:
+    verb: list
+    resource_type: AWS::EC2::SecurityGroup
+    id_args: [--group-ids]
+  url: &sg_url
+    best: "https://{region}.{host}/vpc/home?region={region}#SecurityGroups:"
+    with_id: "https://{region}.{host}/vpc/home?region={region}#SecurityGroup:groupId={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: security groups list; --group-ids opens the group page (go/view resourceType=AWS::EC2::SecurityGroup)
+
+aws.ec2.wait.security-group-exists:
+  intent:
+    verb: view
+    resource_type: AWS::EC2::SecurityGroup
+    id_args: [--group-ids]
+  url: *sg_url
+
+aws.ec2.authorize-security-group-ingress:
+  intent: &sg_rule_intent
+    verb: view
+    resource_type: AWS::EC2::SecurityGroup
+    id_args: [--group-id]
+  url: &sg_rule_url
+    best: "https://{region}.{host}/vpc/home?region={region}#SecurityGroups:"
+    with_id: "https://{region}.{host}/vpc/home?region={region}#SecurityGroup:groupId={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: the group page for --group-id, where its rules are edited (rules tab not evidenced); --group-name alone opens the list
+
+aws.ec2.revoke-security-group-ingress:
+  intent: *sg_rule_intent
+  url: *sg_rule_url
+
+aws.ec2.authorize-security-group-egress:
+  intent: *sg_rule_intent
+  url: *sg_rule_url
+
+aws.ec2.revoke-security-group-egress:
+  intent: *sg_rule_intent
+  url: *sg_rule_url
+
+aws.ec2.create-security-group:
+  intent:
+    verb: create
+    resource_type: AWS::EC2::SecurityGroup
+    id_args: []
+  url:
+    best: "https://{region}.{host}/ec2/home?region={region}#CreateSecurityGroup:"
+    source: curated
+    verified: "2026-11-04"
+    note: create-security-group wizard (go/create); the generated entry put --group-name into the groupId detail page
+
+# --- Create wizards whose generated with_id put a name in an id slot ---
+
+aws.ec2.create-subnet:
+  intent:
+    verb: create
+    resource_type: AWS::EC2::Subnet
+    id_args: []
+  url:
+    best: "https://{region}.{host}/vpcconsole/home?region={region}#CreateSubnet:"
+    source: curated
+    verified: "2026-11-04"
+    note: create-subnet wizard (go/create); the generated entry put --vpc-id into the subnet detail page
+
+aws.ec2.create-key-pair:
+  intent:
+    verb: create
+    resource_type: AWS::EC2::KeyPair
+    id_args: []
+  url:
+    best: "https://{region}.{host}/ec2/home?region={region}#CreateKeyPair:"
+    source: curated
+    verified: "2026-11-04"
+    note: create-key-pair wizard (go/create), also when --key-name is typed
+
+# --- Key pairs, launch templates, placement groups ----------------------
+
+aws.ec2.describe-key-pairs:
+  intent:
+    verb: list
+    resource_type: AWS::EC2::KeyPair
+    id_args: [--key-pair-ids, --key-names]
+  url: &kp_url
+    best: "https://{region}.{host}/ec2/home?region={region}#KeyPairs:"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#KeyPairs:key-pair-id={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: key pairs list filtered by id or name; the resolver puts the key name (the CloudFormation physical id) in the same key-pair-id filter
+
+aws.ec2.wait.key-pair-exists:
+  intent:
+    verb: view
+    resource_type: AWS::EC2::KeyPair
+    id_args: [--key-pair-ids, --key-names]
+  url: *kp_url
+
+aws.ec2.describe-launch-templates:
+  intent:
+    verb: list
+    resource_type: AWS::EC2::LaunchTemplate
+    id_args: [--launch-template-ids]
+  url:
+    best: "https://{region}.{host}/ec2/home?region={region}#LaunchTemplates:"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#LaunchTemplateDetails:launchTemplateId={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: launch template page for --launch-template-ids; --launch-template-names opens the list (the generated entry put a name in launchTemplateId)
+
+aws.ec2.describe-placement-groups:
+  intent:
+    verb: list
+    resource_type: AWS::EC2::PlacementGroup
+    id_args: [--group-names]
+  url:
+    best: "https://{region}.{host}/ec2/home?region={region}#PlacementGroups:"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#PlacementGroups:groupName=%22{id}%22"
+    source: curated
+    verified: "2026-11-04"
+    note: placement groups list, filtered by the quoted group name as the resolver does for AWS::EC2::PlacementGroup
+
+# --- AMIs (no CloudFormation type; detail page from go/view?arn=) -------
+
+aws.ec2.describe-images:
+  intent:
+    verb: list
+    resource_type: null
+    id_args: [--image-ids]
+  url: &image_url
+    best: "https://{region}.{host}/ec2/home?region={region}"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#ImageDetails:imageId={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: AMI page for --image-ids (go/view?arn=...:image/ami-...); no AMI list page is evidenced, so the EC2 home stays the default
+
+aws.ec2.wait.image-available:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: [--image-ids]
+  url: *image_url
+
+aws.ec2.wait.image-exists:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: [--image-ids]
+  url: *image_url
+
+aws.ec2.create-image:
+  intent:
+    verb: create
+    resource_type: null
+    id_args: [--instance-id]
+  url:
+    best: "https://{region}.{host}/ec2/home?region={region}"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#InstanceDetails:instanceId={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: the source instance's page, whose Actions menu creates the image; no AMI create page is evidenced
+
+# --- EBS snapshots (no CloudFormation type) -----------------------------
+
+aws.ec2.describe-snapshots:
+  intent:
+    verb: list
+    resource_type: null
+    id_args: [--snapshot-ids]
+  url: &snap_url
+    best: "https://{region}.{host}/ec2/home?region={region}#Snapshots:"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#Snapshots:snapshotId={id}"
+    source: curated
+    verified: path-only
+    note: snapshots list filtered by id as go/view?arn=...:snapshot/snap-... does; the bare list fragment is that URL without its filter
+
+aws.ec2.wait.snapshot-completed:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: [--snapshot-ids]
+  url: *snap_url
+
+aws.ec2.create-snapshot:
+  intent:
+    verb: create
+    resource_type: null
+    id_args: [--volume-id]
+  url:
+    best: "https://{region}.{host}/ec2/home?region={region}#Snapshots:"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#VolumeDetails:volumeId={id}"
+    source: curated
+    verified: path-only
+    note: the source volume's page (--volume-id), else the snapshots list; no snapshot create page is evidenced
+
+# --- Elastic IPs ---------------------------------------------------------
+
+aws.ec2.describe-addresses:
+  intent:
+    verb: list
+    resource_type: AWS::EC2::EIP
+    id_args: [--allocation-ids]
+  url:
+    best: "https://{region}.{host}/vpc/home?region={region}#Addresses:"
+    with_id: "https://{region}.{host}/vpc/home?region={region}#ElasticIpDetails:AllocationId={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: Elastic IPs list; --allocation-ids opens the address page (--public-ips cannot address it)
+
+aws.ec2.allocate-address:
+  intent:
+    verb: create
+    resource_type: AWS::EC2::EIP
+    id_args: []
+  url:
+    best: "https://{region}.{host}/ec2/home?region={region}#AllocateAddress:"
+    source: curated
+    verified: "2026-11-04"
+    note: allocate Elastic IP page (go/create resourceType=AWS::EC2::EIP)
+
+# --- Reserved and Spot instances (generated entries opened Instances) ---
+
+aws.ec2.describe-reserved-instances:
+  intent:
+    verb: list
+    resource_type: null
+    id_args: [--reserved-instances-ids]
+  url:
+    best: "https://{region}.{host}/ec2/home?region={region}#ReservedInstances:"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#ReservedInstances:reservedInstancesId={id}"
+    source: curated
+    verified: path-only
+    note: Reserved Instances list, filtered by id as go/view?arn=...:reserved-instances/... does
+
+aws.ec2.describe-spot-instance-requests:
+  intent:
+    verb: list
+    resource_type: null
+    id_args: [--spot-instance-request-ids]
+  url: &spot_url
+    best: "https://{region}.{host}/ec2/home?region={region}#SpotInstances:"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#SpotInstancesDetails:id={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: Spot Requests list (go/list AWS::EC2::SpotFleet); a request id opens its page (go/view?arn=...:spot-instances-request/sir-...)
+
+aws.ec2.wait.spot-instance-request-fulfilled:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: [--spot-instance-request-ids]
+  url: *spot_url
+
+# --- Instance waiters the generator left on the EC2 home ----------------
+
+aws.ec2.wait.system-status-ok:
+  intent:
+    verb: view
+    resource_type: AWS::EC2::Instance
+    id_args: [--instance-ids]
+  url: &instance_url
+    best: "https://{region}.{host}/ec2/home?region={region}#Instances:"
+    with_id: "https://{region}.{host}/ec2/home?region={region}#InstanceDetails:instanceId={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: the instance page (status checks tab not evidenced); several ids open the instances list
+
+aws.ec2.wait.password-data-available:
+  intent:
+    verb: view
+    resource_type: AWS::EC2::Instance
+    id_args: [--instance-id]
+  url: *instance_url

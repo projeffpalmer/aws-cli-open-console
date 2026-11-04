@@ -1,0 +1,68 @@
+# Curated console pages for "aws sagemaker" (plan step 2.4, curator W5).
+# SageMaker is regional: https://{region}.{host}/sagemaker/home?region={region}#/...
+#
+# Evidence (2026-11-04):
+#   go/create AWS::SageMaker::Endpoint -> #/endpoints/create
+#   go/view?arn=...:training-job/mytj    -> #/jobs/mytj
+#   go/view?arn=...:processing-job/mypj  -> #/processing-jobs/mypj
+#   go/list AWS::SageMaker::TrainingJob / ProcessingJob -> the service home
+# The training and processing job lists (#/jobs, #/processing-jobs) are
+# the prefixes of those detail pages (path-only).  create-endpoint had a
+# with_id on --endpoint-name, the endpoint that does not exist yet.  Not
+# curated: endpoints, endpoint configs, models, notebook instances,
+# domains and wait endpoint-in-service (already right).
+
+aws.sagemaker.create-endpoint:
+  intent: {verb: create, resource_type: AWS::SageMaker::Endpoint, id_args: []}
+  url:
+    best: "https://{region}.{host}/sagemaker/home?region={region}#/endpoints/create"
+    source: curated
+    verified: "2026-11-04"
+    note: create-endpoint page (go/create); --endpoint-name is the new endpoint
+
+aws.sagemaker.list-training-jobs:
+  intent: {verb: list, resource_type: null, id_args: []}
+  url:
+    best: "https://{region}.{host}/sagemaker/home?region={region}#/jobs"
+    source: curated
+    verified: path-only
+    note: training jobs list (prefix of the resolver's training job page)
+
+aws.sagemaker.describe-training-job: &training_job
+  intent: {verb: view, resource_type: null, id_args: [--training-job-name]}
+  url:
+    best: "https://{region}.{host}/sagemaker/home?region={region}#/jobs"
+    with_id: "https://{region}.{host}/sagemaker/home?region={region}#/jobs/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: training job page (go/view?arn=...:training-job/<name>)
+
+aws.sagemaker.stop-training-job: *training_job
+aws.sagemaker.wait.training-job-completed-or-stopped: *training_job
+
+aws.sagemaker.create-training-job:
+  intent: {verb: create, resource_type: null, id_args: []}
+  url:
+    best: "https://{region}.{host}/sagemaker/home?region={region}#/jobs"
+    source: curated
+    verified: path-only
+    note: training jobs list (no create-page evidence); --training-job-name is new
+
+aws.sagemaker.list-processing-jobs:
+  intent: {verb: list, resource_type: AWS::SageMaker::ProcessingJob, id_args: []}
+  url:
+    best: "https://{region}.{host}/sagemaker/home?region={region}#/processing-jobs"
+    source: curated
+    verified: path-only
+    note: processing jobs list (prefix of the resolver's processing job page)
+
+aws.sagemaker.describe-processing-job: &processing_job
+  intent: {verb: view, resource_type: AWS::SageMaker::ProcessingJob, id_args: [--processing-job-name]}
+  url:
+    best: "https://{region}.{host}/sagemaker/home?region={region}#/processing-jobs"
+    with_id: "https://{region}.{host}/sagemaker/home?region={region}#/processing-jobs/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: processing job page (go/view?arn=...:processing-job/<name>)
+
+aws.sagemaker.wait.processing-job-completed-or-stopped: *processing_job

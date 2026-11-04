@@ -1,0 +1,59 @@
+# Curated console pages for "aws stepfunctions" (console slug "states", plan
+# step 2.4, W2).  Regional console: https://{region}.{host}/states/home?region=...
+#
+# Evidence (2026-11-04):
+#   go/view?resourceType=AWS::StepFunctions::StateMachine&resourceId=<ARN>
+#        -> #/statemachines/view/<ARN, raw>
+#   go/view?arn=arn:aws:states:...:execution:mysm:exec1 -> #/executions/details/<ARN, raw>
+#   go/create?resourceType=AWS::StepFunctions::StateMachine -> #/v2/statemachines/create
+# Express execution ARNs (arn:aws:states:...:express:...) resolve to
+# #/express-executions/details/ instead; no parse function tells the two
+# apart, so execution commands use the standard page (DescribeExecution and
+# GetExecutionHistory serve standard executions).
+# The generated create-state-machine opened #/statemachines/view/<--name>,
+# and describe-state-machine-for-execution put the execution ARN into the
+# state machine page; both are fixed here.
+
+aws.stepfunctions.create-state-machine:
+  intent:
+    verb: create
+    resource_type: AWS::StepFunctions::StateMachine
+    id_args: []
+  url:
+    best: "https://{region}.{host}/states/home?region={region}#/v2/statemachines/create"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: create-state-machine wizard (go/create); --name is not an ARN, so no view page
+
+aws.stepfunctions.start-execution: &state_machine_node
+  intent:
+    verb: view
+    resource_type: AWS::StepFunctions::StateMachine
+    id_args: [--state-machine-arn]
+  url:
+    best: "https://{region}.{host}/states/home?region={region}#/statemachines"
+    with_id: "https://{region}.{host}/states/home?region={region}#/statemachines/view/{id:raw}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: state machine page (--state-machine-arn), which lists its executions
+aws.stepfunctions.start-sync-execution: *state_machine_node
+aws.stepfunctions.list-executions: *state_machine_node
+
+aws.stepfunctions.describe-execution: &execution_node
+  intent:
+    verb: view
+    resource_type: null
+    id_args: [--execution-arn]
+  url:
+    best: "https://{region}.{host}/states/home?region={region}#/statemachines"
+    with_id: "https://{region}.{host}/states/home?region={region}#/executions/details/{id:raw}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: execution details page (--execution-arn, raw like the resolver)
+aws.stepfunctions.stop-execution: *execution_node
+aws.stepfunctions.get-execution-history: *execution_node
+aws.stepfunctions.redrive-execution: *execution_node
+aws.stepfunctions.describe-state-machine-for-execution: *execution_node

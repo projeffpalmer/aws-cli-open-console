@@ -1,0 +1,27 @@
+# Curated console pages for "aws budgets" (plan step 2.4, curator W5).
+#
+# Evidence (2026-11-04):
+#   go/list   AWS::Budgets::Budget -> <r>.../billing/home?region=<r>#/budgets
+#   go/create AWS::Budgets::Budget -> <r>.../costmanagement/home?region=<r>#/budgets/create
+#   go/view?arn=arn:aws:budgets::123456789012:budget/mybudget
+#       -> https://console.aws.amazon.com/billing/home#/budgets/details?name=mybudget
+# describe-budgets and create-budget had --account-id as their only id
+# arg, so the generated with_id opened budgets/details?name=<account id>.
+# describe-budget and describe-budget-performance-history read
+# --budget-name first and are already right.
+
+aws.budgets.describe-budgets:
+  intent: {verb: list, resource_type: AWS::Budgets::Budget, id_args: []}
+  url:
+    best: "https://{region}.{host}/billing/home?region={region}#/budgets"
+    source: curated
+    verified: "2026-11-04"
+    note: budgets list; --account-id is not a budget name
+
+aws.budgets.create-budget:
+  intent: {verb: create, resource_type: AWS::Budgets::Budget, id_args: []}
+  url:
+    best: "https://{region}.{host}/costmanagement/home?region={region}#/budgets/create"
+    source: curated
+    verified: "2026-11-04"
+    note: create-budget wizard (go/create); --account-id is not a budget name

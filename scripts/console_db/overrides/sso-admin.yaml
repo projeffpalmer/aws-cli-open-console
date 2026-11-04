@@ -1,0 +1,47 @@
+# Curated console pages for "aws sso-admin" (plan step 2.4).  IAM Identity
+# Center is regional: https://{region}.{host}/singlesignon/...
+#
+# Evidence (2026-11-04):
+#   go/list AWS::SSO::PermissionSet (and every AWS::SSO type)
+#       -> <r>.console.../singlesignon/home
+#   go/view?arn=arn:aws:sso:::permissionSet/ssoins-abc/ps-abc
+#       -> <r>.console.../singlesignon/organization/home?region=<r>#/permission-sets/details/ps-abc
+#   (Identity Center ARNs carry no region; the template uses the CLI region.)
+# The generated entries take --instance-arn (list-permission-sets) or --name
+# (create-permission-set) as the permission set id, and put the whole
+# permission set ARN in the fragment; the console wants the ps- id, which is
+# the ARN's last path segment (basename).
+
+aws.sso-admin.list-permission-sets:
+  intent: {verb: list, resource_type: AWS::SSO::PermissionSet, id_args: []}
+  url:
+    best: "https://{region}.{host}/singlesignon/home"
+    source: curated
+    verified: "2026-11-04"
+    note: Identity Center home (go/list for permission sets); --instance-arn is not a permission set id
+
+aws.sso-admin.create-permission-set:
+  intent: {verb: create, resource_type: AWS::SSO::PermissionSet, id_args: []}
+  url:
+    best: "https://{region}.{host}/singlesignon/home"
+    source: curated
+    verified: "2026-11-04"
+    note: Identity Center home (go/create for permission sets); --name is not a permission set id
+
+aws.sso-admin.describe-permission-set: &permission_set
+  intent:
+    verb: view
+    resource_type: AWS::SSO::PermissionSet
+    id_args: []
+    params:
+      permission_set: {arg: --permission-set-arn, parse: basename}
+  url:
+    best: "https://{region}.{host}/singlesignon/home"
+    variants:
+      - when: [permission_set]
+        template: "https://{region}.{host}/singlesignon/organization/home?region={region}#/permission-sets/details/{permission_set}"
+    source: curated
+    verified: "2026-11-04"
+    note: the permission set page (ps- id from --permission-set-arn, exact go/view?arn= shape)
+
+aws.sso-admin.list-account-assignments: *permission_set

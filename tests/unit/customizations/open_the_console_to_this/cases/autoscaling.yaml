@@ -1,0 +1,61 @@
+# Cases for "aws autoscaling" (scripts/console_db/overrides/autoscaling.yaml).
+# "myasg" is the group name in the scripts/console_db/snapshots/
+# view-samples.tsv Auto Scaling ARN.  Tier-1 "aws autoscaling" stays in
+# services.yaml.
+
+# Generated entries kept as they are.
+- argv: [autoscaling, describe-auto-scaling-groups]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroups:"
+  source: "resolver:list+view"
+- argv: [autoscaling, describe-auto-scaling-groups, --auto-scaling-group-names, myasg]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroupDetails:id=myasg;view=details"
+  source: "resolver:list+view"
+- argv: [autoscaling, update-auto-scaling-group, --auto-scaling-group-name, myasg, --max-size, "4"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroupDetails:id=myasg;view=details"
+  source: "resolver:list+view"
+- argv: [autoscaling, describe-launch-configurations]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#LaunchConfigurations:"
+  source: "resolver:list+view"
+
+# Create wizards.
+- argv: [autoscaling, create-auto-scaling-group, --auto-scaling-group-name, myasg, --min-size, "1", --max-size, "3"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#CreateAutoScalingGroup:"
+  source: curated
+- argv: [autoscaling, create-launch-configuration, --launch-configuration-name, mylc, --image-id, ami-0123456789abcdef0]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#CreateLaunchConfiguration:"
+  source: curated
+
+# Details tab.
+- argv: [autoscaling, set-desired-capacity, --auto-scaling-group-name, myasg, --desired-capacity, "2"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroupDetails:id=myasg;view=details"
+  source: curated
+- argv: [autoscaling, describe-scaling-activities, --auto-scaling-group-name, myasg]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroupDetails:id=myasg;view=details"
+  source: curated
+- argv: [autoscaling, describe-scaling-activities]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroups:"
+  source: curated
+- argv: [autoscaling, start-instance-refresh, --auto-scaling-group-name, myasg]
+  region: eu-central-1
+  url: "https://eu-central-1.console.aws.amazon.com/ec2/home?region=eu-central-1#AutoScalingGroupDetails:id=myasg;view=details"
+  source: curated
+- argv: [autoscaling, describe-instance-refreshes, --auto-scaling-group-name, myasg]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroupDetails:id=myasg;view=details"
+  source: curated
+
+# Automatic scaling tab.
+- argv: [autoscaling, put-scaling-policy, --auto-scaling-group-name, myasg, --policy-name, cpu50, --policy-type, TargetTrackingScaling]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroupDetails:id=myasg;view=scaling"
+  source: curated
+- argv: [autoscaling, describe-policies, --auto-scaling-group-name, myasg]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroupDetails:id=myasg;view=scaling"
+  source: curated
+- argv: [autoscaling, describe-policies]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroups:"
+  source: curated
+- argv: [autoscaling, execute-policy, --auto-scaling-group-name, myasg, --policy-name, cpu50]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroupDetails:id=myasg;view=scaling"
+  source: curated
+- argv: [autoscaling, delete-policy, --auto-scaling-group-name, myasg, --policy-name, cpu50]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#AutoScalingGroupDetails:id=myasg;view=scaling"
+  source: curated

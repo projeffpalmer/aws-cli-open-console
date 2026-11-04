@@ -1,0 +1,17 @@
+# Cases for scripts/console_db/overrides/firehose.yaml (curator W3) plus
+# generated entries that were reviewed and kept.  Sample stream mystream
+# comes from view-samples.tsv.
+- argv: [firehose, list-delivery-streams]
+  url: "https://us-west-2.console.aws.amazon.com/firehose/home?region=us-west-2#/streams"
+  source: resolver:list
+- argv: [firehose, describe-delivery-stream, --delivery-stream-name, mystream]
+  url: "https://us-west-2.console.aws.amazon.com/firehose/home?region=us-west-2#/details/mystream/monitoring"
+- argv: [firehose, create-delivery-stream, --delivery-stream-name, mystream]
+  url: "https://us-west-2.console.aws.amazon.com/firehose/home?region=us-west-2#/create"
+  source: curated
+- argv: [firehose, put-record, --delivery-stream-name, mystream, --record, Data=aGVsbG8=]
+  url: "https://us-west-2.console.aws.amazon.com/firehose/home?region=us-west-2#/details/mystream/monitoring"
+  source: curated
+- argv: [firehose, put-record-batch, --delivery-stream-name, mystream, --records, Data=aGVsbG8=]
+  url: "https://us-west-2.console.aws.amazon.com/firehose/home?region=us-west-2#/details/mystream/monitoring"
+  source: curated

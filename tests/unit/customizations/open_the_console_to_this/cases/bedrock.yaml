@@ -1,0 +1,30 @@
+# Cases for scripts/console_db/overrides/bedrock.yaml.  Sample ARNs from
+# the go/view?arn= probes (custom-model/mycm, model-customization-job/abc,
+# inference-profile/us.anthropic.claude-3).
+- argv: [bedrock, get-custom-model, --model-identifier, "arn:aws:bedrock:us-west-2:123456789012:custom-model/mycm"]
+  url: "https://us-west-2.console.aws.amazon.com/bedrock/home#/finetune/model?arn=arn:aws:bedrock:us-west-2:123456789012:custom-model/mycm"
+  source: curated
+- argv: [bedrock, get-custom-model, --model-identifier, mycm]
+  url: "https://us-west-2.console.aws.amazon.com/bedrock/home"
+  source: curated
+- argv: [bedrock, get-model-customization-job, --job-identifier, "arn:aws:bedrock:us-west-2:123456789012:model-customization-job/abc"]
+  url: "https://us-west-2.console.aws.amazon.com/bedrock/home#/finetune/job?arn=arn:aws:bedrock:us-west-2:123456789012:model-customization-job/abc"
+  source: curated
+- argv: [bedrock, stop-model-customization-job, --job-identifier, "arn:aws:bedrock:us-west-2:123456789012:model-customization-job/abc"]
+  url: "https://us-west-2.console.aws.amazon.com/bedrock/home#/finetune/job?arn=arn:aws:bedrock:us-west-2:123456789012:model-customization-job/abc"
+  source: curated
+- argv: [bedrock, list-inference-profiles]
+  url: "https://us-west-2.console.aws.amazon.com/bedrock/home?region=us-west-2#/inference-profiles"
+  source: curated
+- argv: [bedrock, get-inference-profile, --inference-profile-identifier, us.anthropic.claude-3]
+  url: "https://us-west-2.console.aws.amazon.com/bedrock/home?region=us-west-2#/inference-profiles/us.anthropic.claude-3"
+  source: curated
+- argv: [bedrock, get-inference-profile, --inference-profile-identifier, "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-3"]
+  region: us-east-1
+  url: "https://us-east-1.console.aws.amazon.com/bedrock/home?region=us-east-1#/inference-profiles/us.anthropic.claude-3"
+  source: curated
+# Generated entries that stay.
+- argv: [bedrock, list-foundation-models]
+  url: "https://us-west-2.console.aws.amazon.com/bedrock/home"
+- argv: [bedrock, get-foundation-model, --model-identifier, anthropic.claude-3]
+  url: "https://us-west-2.console.aws.amazon.com/bedrock/home"

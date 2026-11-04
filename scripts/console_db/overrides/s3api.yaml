@@ -1,0 +1,560 @@
+# Curated console pages for "aws s3api" operations (plan step 2.4, s3
+# pilot).  S3 is a global console: every template uses https://{host}/...
+# and passes the region as a query parameter.  Same evidence and encoding
+# rule as s3.yaml: keys and prefixes use the default {name} (path)
+# encoding, which matches the resolver's %2F / %20 in go/view?arn= redirects.
+# Only the buckets list is the resolver's exact shape (verified 2026-11-04);
+# every other template is checked for host+path only.
+# list-objects and list-objects-v2 cut --prefix back to its last "/"
+# (prefix_dir: photos/2026 opens the photos/ folder view; a prefix with no
+# "/" opens the bucket page).  go/view?arn=arn:aws:s3:::mybucket/photos/2026
+# answers the object page (s3/object/...?prefix=photos%2F2026, probed
+# 2026-11-04), which is not a listing.  list-object-versions still passes
+# --prefix as typed.
+
+aws.s3api.list-buckets:
+  intent:
+    verb: list
+    resource_type: AWS::S3::Bucket
+    id_args: []
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: buckets list (go/list?resourceType=AWS::S3::Bucket)
+
+aws.s3api.create-bucket:
+  intent:
+    verb: create
+    resource_type: AWS::S3::Bucket
+    id_args: []
+  url:
+    best: "https://{host}/s3/bucket/create?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: create-bucket wizard on the global host (resolver uses the regional host)
+
+aws.s3api.head-bucket:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the bucket page (--bucket)
+
+aws.s3api.get-bucket-location:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the bucket page (--bucket)
+
+aws.s3api.delete-bucket:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the bucket page (--bucket)
+
+aws.s3api.list-objects:
+  intent:
+    verb: list
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+      prefix: {arg: --prefix, parse: prefix_dir}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, prefix]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&prefix={prefix}&showversions=false"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the bucket's objects; --prefix opens the folder up to its last /
+
+aws.s3api.list-objects-v2:
+  intent:
+    verb: list
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+      prefix: {arg: --prefix, parse: prefix_dir}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, prefix]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&prefix={prefix}&showversions=false"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the bucket's objects; --prefix opens the folder up to its last /
+
+aws.s3api.list-object-versions:
+  intent:
+    verb: list
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+      prefix: {arg: --prefix}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, prefix]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&prefix={prefix}&showversions=false"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the bucket's objects; --prefix opens the folder view
+
+aws.s3api.get-object:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+      key: {arg: --key}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, key]
+        template: "https://{host}/s3/object/{bucket}?region={region}&prefix={key}"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the object page (--bucket, --key)
+
+aws.s3api.head-object:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+      key: {arg: --key}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, key]
+        template: "https://{host}/s3/object/{bucket}?region={region}&prefix={key}"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the object page (--bucket, --key)
+
+aws.s3api.put-object:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+      key: {arg: --key}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, key]
+        template: "https://{host}/s3/object/{bucket}?region={region}&prefix={key}"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the object page (--bucket, --key)
+
+aws.s3api.delete-object:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+      key: {arg: --key}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, key]
+        template: "https://{host}/s3/object/{bucket}?region={region}&prefix={key}"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the object page (--bucket, --key)
+
+aws.s3api.copy-object:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+      key: {arg: --key}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, key]
+        template: "https://{host}/s3/object/{bucket}?region={region}&prefix={key}"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the destination object page (--bucket, --key)
+
+aws.s3api.get-object-tagging:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+      key: {arg: --key}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, key]
+        template: "https://{host}/s3/object/{bucket}?region={region}&prefix={key}"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the object page (--bucket, --key)
+
+aws.s3api.get-object-acl:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+      key: {arg: --key}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, key]
+        template: "https://{host}/s3/object/{bucket}?region={region}&prefix={key}"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the object page (--bucket, --key)
+
+aws.s3api.get-bucket-policy:
+  intent:
+    verb: view
+    resource_type: AWS::S3::BucketPolicy
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=permissions"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Permissions tab
+
+aws.s3api.put-bucket-policy:
+  intent:
+    verb: view
+    resource_type: AWS::S3::BucketPolicy
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=permissions"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Permissions tab
+
+aws.s3api.get-bucket-acl:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=permissions"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Permissions tab
+
+aws.s3api.get-public-access-block:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=permissions"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Permissions tab
+
+aws.s3api.get-bucket-cors:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=permissions"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Permissions tab
+
+aws.s3api.get-bucket-versioning:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=properties"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Properties tab
+
+aws.s3api.get-bucket-encryption:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=properties"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Properties tab
+
+aws.s3api.get-bucket-tagging:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=properties"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Properties tab
+
+aws.s3api.get-bucket-website:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=properties"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Properties tab
+
+aws.s3api.put-bucket-website:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=properties"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Properties tab
+
+aws.s3api.get-bucket-logging:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=properties"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Properties tab
+
+aws.s3api.get-bucket-notification-configuration:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=properties"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Properties tab
+
+aws.s3api.get-bucket-lifecycle-configuration:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=management"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Management tab
+
+aws.s3api.put-bucket-lifecycle-configuration:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=management"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Management tab
+
+aws.s3api.get-bucket-replication:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&tab=management"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: bucket Management tab
+
+aws.s3api.list-multipart-uploads:
+  intent:
+    verb: list
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --bucket}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the bucket page (--bucket)

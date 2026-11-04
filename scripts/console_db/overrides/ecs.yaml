@@ -1,0 +1,320 @@
+# Curated console pages for "aws ecs" (plan step 2.4, group W4).
+# ECS is a regional console: https://{region}.{host}/ecs/v2/...?region=...
+#
+# Evidence (2026-11-04):
+#   go/list?resourceType=AWS::ECS::Cluster        -> /ecs/v2/clusters?region=<r>
+#   go/view?arn=<cluster, service, task, container-instance or
+#     task-definition ARN> -> /ecs/v2/redirect?arn=<ARN, fully %-encoded>&region=<r>
+#     (view-samples.tsv and live probes); with a plain name the resolver
+#     still emits redirect?arn=<name>, which is not a page for that name.
+#   link2aws.js: /ecs/v2/clusters/<c>?region=, /ecs/v2/clusters/<c>/services/<s>,
+#     /ecs/v2/clusters/<c>/tasks/<t>; arn-to-url: /ecs/v2/clusters/<c>/services/<s>
+#   The brief gives the tab paths /clusters/<c>/services, /services/<s>/health
+#   and /clusters/<c>/tasks; every path answers 200 unauthenticated (SPA), so
+#   tabs are path-only.
+# --cluster, --services and --tasks take a name, an id or an ARN; basename
+# reduces each ARN form (cluster/<c>, service/<c>/<s>, service/<s>,
+# task/<c>/<id>, task/<id>) to the name or id the console paths need, and is
+# the identity for plain names.  Without --cluster ECS uses the cluster
+# named "default", so the variants without a cluster use clusters/default.
+# --task-definition (family, family:revision or ARN): a typed ARN
+# (arn_account present) opens the resolver's redirect page.  RC-B
+# (2026-11-04): family:revision is split with before_colon / after_colon into
+# link2aws.js's task-definition page
+#   /ecs/v2/task-definitions/${resource}/${resource_revision}?region=
+# (path answers 200, SPA, so path-only); the ARN variant goes first because
+# the split of an ARN gives "arn" and "aws:ecs:...".  arn_name of an ARN
+# gives only the revision, so ARNs keep the redirect page.  A family without
+# a revision opens the list (no family-page evidence).
+
+aws.ecs.describe-clusters:
+  intent:
+    verb: view
+    resource_type: AWS::ECS::Cluster
+    id_args: []
+    params:
+      cluster: {arg: --clusters, parse: basename}
+  url:
+    best: "https://{region}.{host}/ecs/v2/clusters?region={region}"
+    variants:
+      - when: [cluster]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/services?region={region}"
+    source: curated
+    verified: path-only
+    note: cluster page (services tab) of the first --clusters value; clusters list without one
+
+aws.ecs.delete-cluster: &ecs_cluster
+  intent:
+    verb: view
+    resource_type: AWS::ECS::Cluster
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+  url:
+    best: "https://{region}.{host}/ecs/v2/clusters?region={region}"
+    variants:
+      - when: [cluster]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/services?region={region}"
+    source: curated
+    verified: path-only
+    note: cluster page (services tab) of --cluster; clusters list without one
+aws.ecs.update-cluster: *ecs_cluster
+aws.ecs.list-container-instances:
+  intent:
+    verb: view
+    resource_type: AWS::ECS::Cluster
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+  url:
+    best: "https://{region}.{host}/ecs/v2/clusters/default/services?region={region}"
+    variants:
+      - when: [cluster]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/services?region={region}"
+    source: curated
+    verified: path-only
+    note: cluster page of --cluster (default cluster without it); the infrastructure tab is not evidenced
+
+aws.ecs.list-services: &ecs_services_list
+  intent:
+    verb: list
+    resource_type: AWS::ECS::Service
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+  url:
+    best: "https://{region}.{host}/ecs/v2/clusters/default/services?region={region}"
+    variants:
+      - when: [cluster]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/services?region={region}"
+    source: curated
+    verified: path-only
+    note: services list of --cluster, or of the default cluster ECS uses without it
+aws.ecs.create-service:
+  <<: *ecs_services_list
+  intent:
+    verb: create
+    resource_type: AWS::ECS::Service
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+
+aws.ecs.describe-services: &ecs_service_multi
+  intent:
+    verb: view
+    resource_type: AWS::ECS::Service
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+      service: {arg: --services, parse: basename}
+  url:
+    best: "https://{region}.{host}/ecs/v2/clusters?region={region}"
+    variants:
+      - when: [cluster, service]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/services/{service}/health?region={region}"
+      - when: [service]
+        template: "https://{region}.{host}/ecs/v2/clusters/default/services/{service}/health?region={region}"
+      - when: [cluster]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/services?region={region}"
+    source: curated
+    verified: path-only
+    note: health tab of the first --services value in --cluster (default cluster without it)
+aws.ecs.wait.services-stable: *ecs_service_multi
+aws.ecs.wait.services-inactive: *ecs_service_multi
+
+aws.ecs.update-service: &ecs_service
+  intent:
+    verb: view
+    resource_type: AWS::ECS::Service
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+      service: {arg: --service, parse: basename}
+  url:
+    best: "https://{region}.{host}/ecs/v2/clusters?region={region}"
+    variants:
+      - when: [cluster, service]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/services/{service}/health?region={region}"
+      - when: [service]
+        template: "https://{region}.{host}/ecs/v2/clusters/default/services/{service}/health?region={region}"
+      - when: [cluster]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/services?region={region}"
+    source: curated
+    verified: path-only
+    note: health tab of the --service in --cluster (default cluster without it)
+aws.ecs.delete-service: *ecs_service
+aws.ecs.deploy: *ecs_service
+
+aws.ecs.list-tasks: &ecs_tasks_list
+  intent:
+    verb: list
+    resource_type: null
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+  url:
+    best: "https://{region}.{host}/ecs/v2/clusters/default/tasks?region={region}"
+    variants:
+      - when: [cluster]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/tasks?region={region}"
+    source: curated
+    verified: path-only
+    note: tasks tab of --cluster, or of the default cluster ECS uses without it
+aws.ecs.run-task:
+  <<: *ecs_tasks_list
+  intent:
+    verb: create
+    resource_type: null
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+aws.ecs.start-task:
+  <<: *ecs_tasks_list
+  intent:
+    verb: create
+    resource_type: null
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+
+aws.ecs.describe-tasks: &ecs_task_multi
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+      task: {arg: --tasks, parse: basename}
+  url:
+    best: "https://{region}.{host}/ecs/v2/clusters/default/tasks?region={region}"
+    variants:
+      - when: [cluster, task]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/tasks/{task}?region={region}"
+      - when: [task]
+        template: "https://{region}.{host}/ecs/v2/clusters/default/tasks/{task}?region={region}"
+      - when: [cluster]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/tasks?region={region}"
+    source: curated
+    verified: path-only
+    note: task page of the first --tasks value in --cluster (default cluster without it)
+aws.ecs.wait.tasks-running: *ecs_task_multi
+aws.ecs.wait.tasks-stopped: *ecs_task_multi
+
+aws.ecs.stop-task: &ecs_task
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      cluster: {arg: --cluster, parse: basename}
+      task: {arg: --task, parse: basename}
+  url:
+    best: "https://{region}.{host}/ecs/v2/clusters/default/tasks?region={region}"
+    variants:
+      - when: [cluster, task]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/tasks/{task}?region={region}"
+      - when: [task]
+        template: "https://{region}.{host}/ecs/v2/clusters/default/tasks/{task}?region={region}"
+      - when: [cluster]
+        template: "https://{region}.{host}/ecs/v2/clusters/{cluster}/tasks?region={region}"
+    source: curated
+    verified: path-only
+    note: task page of --task in --cluster (default cluster without it)
+aws.ecs.execute-command: *ecs_task
+
+aws.ecs.describe-task-definition:
+  intent:
+    verb: view
+    resource_type: AWS::ECS::TaskDefinition
+    id_args: []
+    params:
+      td: {arg: --task-definition}
+      td_account: {arg: --task-definition, parse: arn_account}
+      td_family: {arg: --task-definition, parse: before_colon}
+      td_revision: {arg: --task-definition, parse: after_colon}
+  url:
+    best: "https://{region}.{host}/ecs/v2/task-definitions?region={region}"
+    variants:
+      - when: [td, td_account]
+        template: "https://{region}.{host}/ecs/v2/redirect?arn={td:query}&region={region}"
+      - when: [td_family, td_revision]
+        template: "https://{region}.{host}/ecs/v2/task-definitions/{td_family}/{td_revision}?region={region}"
+    source: curated
+    verified: path-only
+    note: family:revision opens that revision's page (link2aws shape); an ARN the resolver's redirect page; a family alone the list
+
+aws.ecs.monitor-express-gateway-service:
+  intent:
+    verb: view
+    resource_type: AWS::ECS::Service
+    id_args: [--service-arn]
+  url:
+    best: "https://{region}.{host}/ecs/v2/clusters?region={region}"
+    with_id: "https://{region}.{host}/ecs/v2/redirect?arn={id:query}&region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: the service ARN through the console's redirect page, as go/view?arn= does for service ARNs
+
+# The generated entries below render redirect?arn=<name> for a plain name
+# (the console's redirect page needs an ARN), so they are curated.
+aws.ecs.create-cluster:
+  intent:
+    verb: create
+    resource_type: AWS::ECS::Cluster
+    id_args: []
+  url:
+    best: "https://{region}.{host}/ecs/v2/create-cluster?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: create-cluster wizard (go/create?resourceType=AWS::ECS::Cluster)
+
+aws.ecs.create-capacity-provider: &ecs_cp_name
+  intent:
+    verb: create
+    resource_type: AWS::ECS::CapacityProvider
+    id_args: []
+  url:
+    best: "https://{region}.{host}/ecs/v2/home"
+    source: curated
+    verified: "2026-11-04"
+    note: ECS home (go/list and go/create for AWS::ECS::CapacityProvider); --name is not an ARN
+aws.ecs.update-capacity-provider:
+  <<: *ecs_cp_name
+  intent:
+    verb: view
+    resource_type: AWS::ECS::CapacityProvider
+    id_args: []
+
+aws.ecs.describe-capacity-providers:
+  intent:
+    verb: view
+    resource_type: AWS::ECS::CapacityProvider
+    id_args: []
+    params:
+      cp: {arg: --capacity-providers}
+      cp_account: {arg: --capacity-providers, parse: arn_account}
+  url:
+    best: "https://{region}.{host}/ecs/v2/home"
+    variants:
+      - when: [cp, cp_account]
+        template: "https://{region}.{host}/ecs/v2/redirect?arn={cp:query}&region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: a capacity-provider ARN opens the resolver's redirect page; a name the ECS home
+
+aws.ecs.delete-task-definitions:
+  intent:
+    verb: view
+    resource_type: AWS::ECS::TaskDefinition
+    id_args: []
+    params:
+      td: {arg: --task-definitions}
+      td_account: {arg: --task-definitions, parse: arn_account}
+  url:
+    best: "https://{region}.{host}/ecs/v2/task-definitions?region={region}"
+    variants:
+      - when: [td, td_account]
+        template: "https://{region}.{host}/ecs/v2/redirect?arn={td:query}&region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: the first task-definition ARN through the redirect page; family:revision values the list

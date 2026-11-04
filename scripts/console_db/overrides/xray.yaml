@@ -1,0 +1,36 @@
+# Curated console pages for "aws xray" (plan step 2.4, group W2).
+# X-Ray group detail pages stay on the regional X-Ray console while the
+# lists moved into CloudWatch; both forms come from the resolver.
+#
+# Evidence (2026-11-04):
+#   go/list?resourceType=AWS::XRay::Group -> cloudwatch/home?region=<r>#xray:settings/groups
+#   go/view?resourceType=AWS::XRay::Group&resourceId=zz9idzz9
+#        -> xray/home?region=<r>#/groups/detail/zz9idzz9 (view-by-id.tsv)
+#   go/view?arn=arn:aws:xray:...:group/mygroup     -> #/groups/detail/mygroup
+#   go/view?arn=arn:aws:xray:...:group/mygroup/abc -> bare xray/home
+# The generated get-group/update-group/delete-group put --group-arn into the
+# detail page too (as %3A-encoded text, a page that does not exist); only
+# --group-name gives the detail page here, a group ARN gives the groups
+# list.  Traces and the service map have no resolver or documented URL, so
+# get-trace-summaries, batch-get-traces and get-service-graph keep their
+# generated X-Ray home; get-groups and get-sampling-rules were already the
+# resolver's list pages.
+
+aws.xray.get-group: &group_node
+  intent:
+    verb: view
+    resource_type: AWS::XRay::Group
+    id_args: []
+    params:
+      group: {arg: --group-name}
+  url:
+    best: "https://{region}.{host}/cloudwatch/home?region={region}#xray:settings/groups"
+    variants:
+      - when: [group]
+        template: "https://{region}.{host}/xray/home?region={region}#/groups/detail/{group}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: group detail page from --group-name; --group-arn opens the groups list
+aws.xray.update-group: *group_node
+aws.xray.delete-group: *group_node

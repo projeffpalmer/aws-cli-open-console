@@ -1,0 +1,33 @@
+# Cases for the curated "aws organizations" operations (scripts/console_db/
+# overrides/organizations.yaml).  Ids are the samples from
+# snapshots/view-samples.tsv and the live go/view?arn= probes.
+
+- argv: [organizations, list-accounts]
+  url: "https://console.aws.amazon.com/organizations/v2/home/accounts"
+  source: curated
+- argv: [organizations, describe-account, --account-id, "111111111111"]
+  url: "https://console.aws.amazon.com/organizations/v2/home/accounts/111111111111"
+  source: curated
+- argv: [organizations, create-account, --email, "a@example.com", --account-name, Prod]
+  url: "https://console.aws.amazon.com/organizations/v2/home/accounts/add/create"
+  source: curated
+- argv: [organizations, list-roots]
+  url: "https://console.aws.amazon.com/organizations/v2/home/root"
+  source: curated
+- argv: [organizations, list-organizational-units-for-parent, --parent-id, r-abcd]
+  url: "https://console.aws.amazon.com/organizations/v2/home/root"
+  source: curated
+- argv: [organizations, describe-organizational-unit, --organizational-unit-id, ou-abcd-12345678]
+  url: "https://console.aws.amazon.com/organizations/v2/home/organizational-units/ou-abcd-12345678"
+  source: curated
+- argv: [organizations, describe-organization]
+  url: "https://console.aws.amazon.com/organizations/v2/home/settings"
+  source: curated
+- argv: [organizations, list-policies, --filter, SERVICE_CONTROL_POLICY]
+  url: "https://console.aws.amazon.com/organizations/v2/home/policies"
+  source: curated
+- argv: [organizations, list-accounts]
+  region: us-gov-west-1
+  partition: aws-us-gov
+  url: "https://console.amazonaws-us-gov.com/organizations/v2/home/accounts"
+  source: curated

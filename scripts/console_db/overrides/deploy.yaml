@@ -1,0 +1,71 @@
+# Curated console pages for "aws deploy" (CodeDeploy; plan step 2.4, group W4).
+# There is no "aws codedeploy" command in this CLI; "deploy" is the only name.
+# CodeDeploy is a regional console under https://{region}.{host}/codesuite/codedeploy/.
+#
+# Evidence (2026-11-04):
+#   go/list?resourceType=AWS::CodeDeploy::Application   -> /codesuite/codedeploy/applications?region=<r>
+#   go/create?resourceType=AWS::CodeDeploy::Application -> /codesuite/codedeploy/application/new?region=<r>
+#   go/view?arn=arn:aws:codedeploy:us-west-2:123456789012:application:myapp
+#     -> /codesuite/codedeploy/applications/myapp?region=<r>
+#   go/view?arn=...:deploymentgroup:myapp/mydg
+#     -> /codesuite/codedeploy/applications/myapp/deployment-groups/mydg?region=<r>
+# Deployment pages (get-deployment, stop-deployment, wait
+# deployment-successful take only a deployment id) and on-premises instance
+# pages (register, deregister) are not evidenced; they keep their entries.
+
+aws.deploy.create-application:
+  intent:
+    verb: create
+    resource_type: AWS::CodeDeploy::Application
+    id_args: []
+  url:
+    best: "https://{region}.{host}/codesuite/codedeploy/application/new?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: create-application wizard; the generated entry opened the not-yet-existing application
+
+aws.deploy.list-deployment-groups: &cd_app
+  intent:
+    verb: view
+    resource_type: AWS::CodeDeploy::Application
+    id_args: [--application-name]
+  url:
+    best: "https://{region}.{host}/codesuite/codedeploy/applications?region={region}"
+    with_id: "https://{region}.{host}/codesuite/codedeploy/applications/{id}?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: application page of --application-name (lists its deployment groups)
+aws.deploy.create-deployment-group: *cd_app
+aws.deploy.batch-get-deployment-groups: *cd_app
+aws.deploy.push: *cd_app
+
+aws.deploy.get-deployment-group: &cd_dg
+  intent:
+    verb: view
+    resource_type: AWS::CodeDeploy::DeploymentGroup
+    id_args: []
+    params:
+      app: {arg: --application-name}
+      group: {arg: --deployment-group-name}
+  url:
+    best: "https://{region}.{host}/codesuite/codedeploy/applications?region={region}"
+    variants:
+      - when: [app, group]
+        template: "https://{region}.{host}/codesuite/codedeploy/applications/{app}/deployment-groups/{group}?region={region}"
+      - when: [app]
+        template: "https://{region}.{host}/codesuite/codedeploy/applications/{app}?region={region}"
+    source: curated
+    verified: "2026-11-04"
+    note: deployment group page (go/view?arn= of a deploymentgroup ARN)
+aws.deploy.delete-deployment-group: *cd_dg
+aws.deploy.create-deployment: *cd_dg
+aws.deploy.list-deployments: *cd_dg
+aws.deploy.update-deployment-group:
+  <<: *cd_dg
+  intent:
+    verb: view
+    resource_type: AWS::CodeDeploy::DeploymentGroup
+    id_args: []
+    params:
+      app: {arg: --application-name}
+      group: {arg: --current-deployment-group-name}

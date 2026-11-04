@@ -1,0 +1,20 @@
+# Curated console pages for "aws resourcegroupstaggingapi" (plan step 2.4,
+# curator W5).  Tagging across services is done in Tag Editor.
+#
+# Evidence: AWS docs tag-editor/latest/userguide/find-resources-to-tag.html
+# links https://console.aws.amazon.com/resource-groups/tag-editor.  The
+# regional host form and ?region= follow the tier-1 row (resource-groups
+# is regional).  The path answers 200; the page is not resolver-verified.
+
+aws.resourcegroupstaggingapi.get-resources: &tag_editor
+  intent: {verb: list, resource_type: null, id_args: []}
+  url:
+    best: "https://{region}.{host}/resource-groups/tag-editor?region={region}"
+    source: curated
+    verified: path-only
+    note: Tag Editor, which finds and tags resources across services
+
+aws.resourcegroupstaggingapi.tag-resources: *tag_editor
+aws.resourcegroupstaggingapi.untag-resources: *tag_editor
+aws.resourcegroupstaggingapi.get-tag-keys: *tag_editor
+aws.resourcegroupstaggingapi.get-tag-values: *tag_editor

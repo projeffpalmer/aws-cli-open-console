@@ -1,0 +1,17 @@
+# Cases for scripts/console_db/overrides/budgets.yaml.  Sample budget name
+# from scripts/console_db/snapshots/view-samples.tsv probes (mybudget).
+- argv: [budgets, describe-budgets, --account-id, "123456789012"]
+  url: "https://us-west-2.console.aws.amazon.com/billing/home?region=us-west-2#/budgets"
+  source: curated
+- argv: [budgets, create-budget, --account-id, "123456789012", --budget, file://budget.json]
+  url: "https://us-west-2.console.aws.amazon.com/costmanagement/home?region=us-west-2#/budgets/create"
+  source: curated
+- argv: [budgets, describe-budgets, --account-id, "123456789012"]
+  region: us-east-1
+  url: "https://us-east-1.console.aws.amazon.com/billing/home?region=us-east-1#/budgets"
+  source: curated
+# Generated entries that stay.
+- argv: [budgets, describe-budget, --account-id, "123456789012", --budget-name, mybudget]
+  url: "https://console.aws.amazon.com/billing/home#/budgets/details?name=mybudget"
+- argv: [budgets, describe-budget-performance-history, --account-id, "123456789012", --budget-name, mybudget]
+  url: "https://console.aws.amazon.com/billing/home#/budgets/details?name=mybudget"

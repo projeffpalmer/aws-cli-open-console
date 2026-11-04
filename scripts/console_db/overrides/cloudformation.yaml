@@ -1,0 +1,131 @@
+# Curated console pages for "aws cloudformation" (plan step 2.4, group W2).
+# CloudFormation is a regional console: https://{region}.{host}/cloudformation/...
+#
+# Evidence (2026-11-04):
+#   go/list?resourceType=AWS::CloudFormation::Stack   -> #/stacks
+#   go/create?resourceType=AWS::CloudFormation::Stack -> #/stacks/create
+#   go/view?resourceType=AWS::CloudFormation::Stack&resourceId=mystack
+#                     -> #/stacks/stackinfo?stackId=mystack
+#   go/view?arn=arn:aws:cloudformation:...:stack/mystack/abc-123
+#                     -> #/stacks/stackinfo?stackId=<the ARN, raw>
+#   go/view?arn=arn:aws:cloudformation:...:changeSet/mycs/abc-123 -> #/stacks
+# --stack-name takes a name or a stack ARN and the resolver keeps both raw,
+# so stack pages use {id:raw} (the generated {id} encodes the ARN).
+# The other stack tabs (#/stacks/events, resources, template, changesets,
+# with the same ?stackId= query) come from the brief and the reference
+# projects under the scratchpad src/ (events/resources); the resolver does
+# not produce them, so they are path-only.  package --s3-prefix (RC-B,
+# 2026-11-04): the s3 pilot's folder view (go/view?arn=arn:aws:s3:::mybucket/some/
+# -> /s3/buckets/mybucket?prefix=some%2F) with ensure_trailing_slash.  A change set has no page of its
+# own in the resolver; change-set commands open the stack's Change sets tab.
+
+aws.cloudformation.describe-stacks: &stack_info
+  intent:
+    verb: view
+    resource_type: AWS::CloudFormation::Stack
+    id_args: [--stack-name]
+  url:
+    best: "https://{region}.{host}/cloudformation/home?region={region}#/stacks"
+    with_id: "https://{region}.{host}/cloudformation/home?region={region}#/stacks/stackinfo?stackId={id:raw}"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: stack info page (--stack-name as typed, name or ARN); no id gives the stacks list
+aws.cloudformation.update-stack: *stack_info
+aws.cloudformation.delete-stack: *stack_info
+aws.cloudformation.deploy: *stack_info
+aws.cloudformation.wait.stack-exists: *stack_info
+
+aws.cloudformation.describe-stack-events: &stack_events
+  intent:
+    verb: view
+    resource_type: AWS::CloudFormation::Stack
+    id_args: [--stack-name]
+  url:
+    best: "https://{region}.{host}/cloudformation/home?region={region}#/stacks"
+    with_id: "https://{region}.{host}/cloudformation/home?region={region}#/stacks/events?stackId={id:raw}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the stack's Events tab, where create/update/delete progress shows
+aws.cloudformation.wait.stack-create-complete: *stack_events
+aws.cloudformation.wait.stack-update-complete: *stack_events
+aws.cloudformation.wait.stack-delete-complete: *stack_events
+aws.cloudformation.wait.stack-import-complete: *stack_events
+aws.cloudformation.wait.stack-rollback-complete: *stack_events
+
+aws.cloudformation.describe-stack-resources: &stack_resources
+  intent:
+    verb: view
+    resource_type: AWS::CloudFormation::Stack
+    id_args: [--stack-name]
+  url:
+    best: "https://{region}.{host}/cloudformation/home?region={region}#/stacks"
+    with_id: "https://{region}.{host}/cloudformation/home?region={region}#/stacks/resources?stackId={id:raw}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the stack's Resources tab
+aws.cloudformation.list-stack-resources: *stack_resources
+
+aws.cloudformation.get-template:
+  intent:
+    verb: view
+    resource_type: AWS::CloudFormation::Stack
+    id_args: [--stack-name]
+  url:
+    best: "https://{region}.{host}/cloudformation/home?region={region}#/stacks"
+    with_id: "https://{region}.{host}/cloudformation/home?region={region}#/stacks/template?stackId={id:raw}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the stack's Template tab
+
+aws.cloudformation.list-change-sets: &stack_changesets
+  intent:
+    verb: view
+    resource_type: AWS::CloudFormation::ChangeSet
+    id_args: [--stack-name]
+  url:
+    best: "https://{region}.{host}/cloudformation/home?region={region}#/stacks"
+    with_id: "https://{region}.{host}/cloudformation/home?region={region}#/stacks/changesets?stackId={id:raw}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the stack's Change sets tab; without --stack-name the stacks list (go/view of a change-set ARN)
+aws.cloudformation.describe-change-set: *stack_changesets
+aws.cloudformation.create-change-set: *stack_changesets
+aws.cloudformation.execute-change-set: *stack_changesets
+aws.cloudformation.wait.change-set-create-complete: *stack_changesets
+
+aws.cloudformation.create-stack:
+  intent:
+    verb: create
+    resource_type: AWS::CloudFormation::Stack
+    id_args: []
+  url:
+    best: "https://{region}.{host}/cloudformation/home?region={region}#/stacks/create"
+    needs_account: false
+    source: curated
+    verified: "2026-11-04"
+    note: create-stack wizard (go/create), also when --stack-name is typed
+
+aws.cloudformation.package:
+  intent:
+    verb: view
+    resource_type: AWS::S3::Bucket
+    id_args: []
+    params:
+      bucket: {arg: --s3-bucket}
+      prefix: {arg: --s3-prefix, parse: ensure_trailing_slash}
+  url:
+    best: "https://{host}/s3/buckets?region={region}"
+    variants:
+      - when: [bucket, prefix]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}&prefix={prefix}&showversions=false"
+      - when: [bucket]
+        template: "https://{host}/s3/buckets/{bucket}?region={region}"
+    needs_account: false
+    source: curated
+    verified: path-only
+    note: the --s3-bucket page on the global S3 host (s3 pilot templates); --s3-prefix opens its folder view

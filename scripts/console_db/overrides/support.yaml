@@ -1,0 +1,32 @@
+# Curated console pages for "aws support" (plan step 2.4, curator W5).
+# Support Center is on the special host support.console.aws.amazon.com.
+#
+# Evidence (2026-11-04):
+#   support service-2.json (AWS API docs) links
+#       https://console.aws.amazon.com/support/home#/case/create; the
+#       console serves /support/home from support.console.aws.amazon.com
+#       (tier-1 row), so the special host is kept.
+#   go/view?service=trustedadvisor&region=us-west-2
+#       -> https://us-west-2.console.aws.amazon.com/trustedadvisor/home
+# Not curated: describe-cases (the generated Support Center home lists
+# cases; a support case ARN resolves to that same home).
+
+aws.support.create-case:
+  intent: {verb: create, resource_type: null, id_args: []}
+  url:
+    best: "https://support.console.aws.amazon.com/support/home#/case/create"
+    source: curated
+    verified: path-only
+    note: create-case form (AWS API docs link)
+
+aws.support.describe-trusted-advisor-checks: &trusted_advisor
+  intent: {verb: list, resource_type: null, id_args: []}
+  url:
+    best: "https://{region}.{host}/trustedadvisor/home"
+    source: curated
+    verified: "2026-11-04"
+    note: Trusted Advisor console (go/view?service=trustedadvisor)
+
+aws.support.describe-trusted-advisor-check-result: *trusted_advisor
+aws.support.describe-trusted-advisor-check-summaries: *trusted_advisor
+aws.support.refresh-trusted-advisor-check: *trusted_advisor

@@ -1,0 +1,59 @@
+# Curated console pages for "aws emr" (plan step 2.4, curator W5).  Amazon
+# EMR is regional.  Cluster pages use the resolver's elasticmapreduce form.
+#
+# Evidence (2026-11-04):
+#   go/list   AWS::EMR::Cluster -> /emr/home?region=<r>#/clusters
+#   go/create AWS::EMR::Cluster -> /emr/home?region=<r>#/createCluster
+#   go/view?arn=arn:aws:elasticmapreduce:...:cluster/j-ABC and
+#   go/view?resourceType=AWS::EMR::Cluster&resourceId=j-ABC
+#       -> /elasticmapreduce/home?region=<r>#cluster-details:j-ABC
+#   go/view AWS::EMR::Step (any id) -> the clusters list (no step page)
+# Every custom subcommand that takes --cluster-id opens that cluster's
+# page; steps open their cluster's page (no evidence for a Steps tab).
+# Not curated: create-default-roles (creates IAM roles; the generated
+# clusters list stays), wait cluster-running / cluster-terminated (already
+# the cluster page).
+
+aws.emr.describe-cluster: &cluster_page
+  intent: {verb: view, resource_type: AWS::EMR::Cluster, id_args: [--cluster-id]}
+  url:
+    best: "https://{region}.{host}/emr/home?region={region}#/clusters"
+    with_id: "https://{region}.{host}/elasticmapreduce/home?region={region}#cluster-details:{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: the cluster's page (--cluster-id), else the clusters list
+
+aws.emr.list-steps: *cluster_page
+aws.emr.describe-step: *cluster_page
+aws.emr.add-steps: *cluster_page
+aws.emr.cancel-steps: *cluster_page
+aws.emr.wait.step-complete: *cluster_page
+aws.emr.list-instances: *cluster_page
+aws.emr.add-instance-groups: *cluster_page
+aws.emr.modify-cluster-attributes: *cluster_page
+aws.emr.install-applications: *cluster_page
+aws.emr.create-hbase-backup: *cluster_page
+aws.emr.disable-hbase-backups: *cluster_page
+aws.emr.restore-from-hbase-backup: *cluster_page
+aws.emr.schedule-hbase-backup: *cluster_page
+aws.emr.ssh: *cluster_page
+aws.emr.socks: *cluster_page
+aws.emr.put: *cluster_page
+aws.emr.get: *cluster_page
+
+aws.emr.terminate-clusters:
+  intent: {verb: view, resource_type: AWS::EMR::Cluster, id_args: [--cluster-ids]}
+  url:
+    best: "https://{region}.{host}/emr/home?region={region}#/clusters"
+    with_id: "https://{region}.{host}/elasticmapreduce/home?region={region}#cluster-details:{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: the cluster's page for one id, the clusters list for several
+
+aws.emr.create-cluster:
+  intent: {verb: create, resource_type: AWS::EMR::Cluster, id_args: []}
+  url:
+    best: "https://{region}.{host}/emr/home?region={region}#/createCluster"
+    source: curated
+    verified: "2026-11-04"
+    note: create-cluster wizard (go/create AWS::EMR::Cluster)

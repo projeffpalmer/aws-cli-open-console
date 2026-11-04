@@ -1,0 +1,27 @@
+# Cases for scripts/console_db/overrides/sns.yaml.  Sample topic mytopic in
+# account 123456789012 from scripts/console_db/snapshots/view-samples.tsv.
+
+- argv: [sns, publish, --topic-arn, "arn:aws:sns:us-west-2:123456789012:mytopic", --message, hello]
+  url: "https://us-west-2.console.aws.amazon.com/sns/v3/home?region=us-west-2#/topic/arn:aws:sns:us-west-2:123456789012:mytopic"
+  source: curated
+- argv: [sns, publish, --phone-number, "+15555550100", --message, hello]
+  url: "https://us-west-2.console.aws.amazon.com/sns/v3/home?region=us-west-2#/topics"
+  source: curated
+- argv: [sns, subscribe, --topic-arn, "arn:aws:sns:us-west-2:123456789012:mytopic", --protocol, email, --notification-endpoint, "ops@example.com"]
+  url: "https://us-west-2.console.aws.amazon.com/sns/v3/home?region=us-west-2#/topic/arn:aws:sns:us-west-2:123456789012:mytopic"
+  source: curated
+- argv: [sns, list-subscriptions-by-topic, --topic-arn, "arn:aws:sns:eu-west-1:123456789012:mytopic"]
+  region: eu-west-1
+  url: "https://eu-west-1.console.aws.amazon.com/sns/v3/home?region=eu-west-1#/topic/arn:aws:sns:eu-west-1:123456789012:mytopic"
+  source: curated
+- argv: [sns, create-topic, --name, mytopic]
+  url: "https://us-west-2.console.aws.amazon.com/sns/v3/home?region=us-west-2#/create-topic"
+  source: curated
+
+# Not curated: generated entries stay.
+- argv: [sns, list-topics]
+  url: "https://us-west-2.console.aws.amazon.com/sns/v3/home?region=us-west-2#/topics"
+- argv: [sns, get-topic-attributes, --topic-arn, "arn:aws:sns:us-west-2:123456789012:mytopic"]
+  url: "https://us-west-2.console.aws.amazon.com/sns/v3/home?region=us-west-2#/topic/arn:aws:sns:us-west-2:123456789012:mytopic"
+- argv: [sns, list-subscriptions]
+  url: "https://us-west-2.console.aws.amazon.com/sns/v3/home"

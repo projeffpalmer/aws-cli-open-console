@@ -1,0 +1,150 @@
+# Curated console pages for "aws rds" (plan step 2.4, curator W3).
+# RDS is regional: https://{region}.{host}/rds/home?region={region}#...
+#
+# Evidence (2026-11-04):
+#   go/list?resourceType=AWS::RDS::DBInstance   -> #databases:          (types.tsv)
+#   go/create?resourceType=AWS::RDS::DBInstance -> #launch-dbinstance:  (types.tsv)
+#   go/view?resourceType=AWS::RDS::DBInstance&resourceId=zz9idzz9
+#                                -> #database:id=zz9idzz9;is-cluster=false (view-by-id.tsv)
+#   go/view?resourceType=AWS::RDS::DBCluster&resourceId=zz9idzz9
+#                                -> #database:id=zz9idzz9;is-cluster=true  (view-by-id.tsv)
+#   go/view?arn=arn:aws:rds:us-west-2:123456789012:snapshot:mysnap
+#                                -> #db-snapshot:id=mysnap                 (live probe)
+#   go/view?arn=arn:aws:rds:us-west-2:123456789012:cluster-snapshot:mysnap
+#                                -> #db-snapshot:id=mysnap                 (live probe)
+# go/list and go/create for AWS::RDS::DBCluster and AWS::RDS::DBSnapshot
+# only reach /rds/home; clusters are listed on the same Databases page as
+# instances, and Aurora clusters are created from the same launch wizard.
+# No evidence was found for a snapshots list or an events page
+# (describe-events keeps its generated entry).
+
+aws.rds.create-db-instance: &launch
+  intent:
+    verb: create
+    resource_type: AWS::RDS::DBInstance
+    id_args: []
+  url:
+    best: "https://{region}.{host}/rds/home?region={region}#launch-dbinstance:"
+    source: curated
+    verified: "2026-11-04"
+    note: create-database wizard (go/create); the instance does not exist yet
+
+aws.rds.create-db-cluster:
+  intent:
+    verb: create
+    resource_type: AWS::RDS::DBCluster
+    id_args: []
+  url:
+    best: "https://{region}.{host}/rds/home?region={region}#launch-dbinstance:"
+    source: curated
+    verified: "2026-11-04"
+    note: the create-database wizard, which also creates Aurora and Multi-AZ clusters
+
+aws.rds.describe-db-clusters: &cluster_page
+  intent:
+    verb: list
+    resource_type: AWS::RDS::DBCluster
+    id_args: [--db-cluster-identifier]
+  url:
+    best: "https://{region}.{host}/rds/home?region={region}#databases:"
+    with_id: "https://{region}.{host}/rds/home?region={region}#database:id={id};is-cluster=true"
+    source: curated
+    verified: "2026-11-04"
+    note: Databases list (it lists clusters too); the cluster page with an id
+
+aws.rds.modify-db-cluster: *cluster_page
+aws.rds.delete-db-cluster: *cluster_page
+aws.rds.start-db-cluster: *cluster_page
+aws.rds.stop-db-cluster: *cluster_page
+aws.rds.wait.db-cluster-available: *cluster_page
+aws.rds.wait.db-cluster-deleted: *cluster_page
+
+aws.rds.describe-db-snapshots:
+  intent:
+    verb: list
+    resource_type: AWS::RDS::DBSnapshot
+    id_args: [--db-snapshot-identifier]
+    params:
+      instance: {arg: --db-instance-identifier}
+  url:
+    best: "https://{region}.{host}/rds/home"
+    variants:
+      - when: [instance]
+        template: "https://{region}.{host}/rds/home?region={region}#database:id={instance};is-cluster=false"
+    with_id: "https://{region}.{host}/rds/home?region={region}#db-snapshot:id={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: snapshot page; the instance page for --db-instance-identifier
+
+aws.rds.create-db-snapshot:
+  intent:
+    verb: create
+    resource_type: AWS::RDS::DBSnapshot
+    id_args: []
+    params:
+      instance: {arg: --db-instance-identifier}
+  url:
+    best: "https://{region}.{host}/rds/home?region={region}#databases:"
+    variants:
+      - when: [instance]
+        template: "https://{region}.{host}/rds/home?region={region}#database:id={instance};is-cluster=false"
+    source: curated
+    verified: "2026-11-04"
+    note: the instance being snapshotted (Actions, Take snapshot)
+
+aws.rds.describe-db-cluster-snapshots:
+  intent:
+    verb: list
+    resource_type: AWS::RDS::ClusterSnapshot
+    id_args: [--db-cluster-snapshot-identifier]
+    params:
+      cluster: {arg: --db-cluster-identifier}
+  url:
+    best: "https://{region}.{host}/rds/home"
+    variants:
+      - when: [cluster]
+        template: "https://{region}.{host}/rds/home?region={region}#database:id={cluster};is-cluster=true"
+    with_id: "https://{region}.{host}/rds/home?region={region}#db-snapshot:id={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: cluster snapshot page; the cluster page for --db-cluster-identifier
+
+aws.rds.wait.db-snapshot-available: &snapshot_wait
+  intent:
+    verb: view
+    resource_type: AWS::RDS::DBSnapshot
+    id_args: [--db-snapshot-identifier]
+  url:
+    best: "https://{region}.{host}/rds/home"
+    with_id: "https://{region}.{host}/rds/home?region={region}#db-snapshot:id={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: the snapshot page of --db-snapshot-identifier
+
+aws.rds.wait.db-snapshot-completed: *snapshot_wait
+aws.rds.wait.db-snapshot-deleted: *snapshot_wait
+
+aws.rds.wait.db-cluster-snapshot-available: &cluster_snapshot_wait
+  intent:
+    verb: view
+    resource_type: AWS::RDS::ClusterSnapshot
+    id_args: [--db-cluster-snapshot-identifier]
+  url:
+    best: "https://{region}.{host}/rds/home"
+    with_id: "https://{region}.{host}/rds/home?region={region}#db-snapshot:id={id}"
+    source: curated
+    verified: "2026-11-04"
+    note: the cluster snapshot page of --db-cluster-snapshot-identifier
+
+aws.rds.wait.db-cluster-snapshot-deleted: *cluster_snapshot_wait
+
+aws.rds.generate-db-auth-token:
+  intent:
+    verb: list
+    resource_type: AWS::RDS::DBInstance
+    id_args: []
+  url:
+    best: "https://{region}.{host}/rds/home?region={region}#databases:"
+    source: curated
+    verified: "2026-11-04"
+    note: Databases list; no parse function turns --hostname into an instance id

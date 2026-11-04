@@ -75460,8 +75460,7 @@
       "enum":[
         "high",
         "medium",
-        "low",
-        "unsupported"
+        "low"
       ]
     },
     "SupportedAdditionalProcessorFeature":{

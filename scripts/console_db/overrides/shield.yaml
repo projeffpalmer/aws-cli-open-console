@@ -1,0 +1,47 @@
+# Curated Shield protection pages: the resolver's list target is dead on
+# the regional host (scripts/console_db/review/verify-report.md).
+#
+# Evidence (2026-11-04, unauthenticated GET, no redirect following):
+#   go/list?resourceType=AWS::Shield::Protection&region=us-west-2 (and
+#   ::ProtectionGroup, snapshots/types.tsv)
+#     -> https://us-west-2.console.aws.amazon.com/wafv2/shieldv2/protected_resources?region=us-west-2#/
+#   that path answers 404 on us-west-2.console.aws.amazon.com and 302 to
+#   the same path on us-east-1.console.aws.amazon.com (200) from
+#   console.aws.amazon.com.
+# The resolver's detail pages (snapshots/view-by-id.tsv) already use the
+# global host: /wafv2/shieldv2#/protected_resources/<id> and
+# #/protection_groups/<id>; the with_id templates are those, unchanged.
+# The "#/" fragment is the resolver's.
+
+aws.shield.list-protections:
+  url: &protections
+    best: "https://{host}/wafv2/shieldv2/protected_resources?region={region}#/"
+    source: curated
+    verified: "2026-11-04"
+    note: resolver protected resources list on the global host; the regional host answers 404
+aws.shield.list-protection-groups:
+  url: *protections
+
+aws.shield.describe-protection:
+  url: &protection
+    best: "https://{host}/wafv2/shieldv2/protected_resources?region={region}#/"
+    with_id: "https://{host}/wafv2/shieldv2#/protected_resources/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: resolver protected resources list on the global host; the regional host answers 404
+aws.shield.delete-protection:
+  url: *protection
+
+aws.shield.describe-protection-group:
+  url: &group
+    best: "https://{host}/wafv2/shieldv2/protected_resources?region={region}#/"
+    with_id: "https://{host}/wafv2/shieldv2#/protection_groups/{id}"
+    source: curated
+    verified: "2026-11-04"
+    note: resolver protected resources list on the global host; the regional host answers 404
+aws.shield.delete-protection-group:
+  url: *group
+aws.shield.list-resources-in-protection-group:
+  url: *group
+aws.shield.update-protection-group:
+  url: *group

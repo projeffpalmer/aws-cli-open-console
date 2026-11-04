@@ -116,3 +116,7 @@
   *   enhanced
   
   
+``--in-console`` (boolean)
+  
+  Do not run the command. Open the AWS Management Console page that best matches it instead, signed in with the credentials the command would have used, and print the URL. With ``help`` , open the documentation instead.
+  

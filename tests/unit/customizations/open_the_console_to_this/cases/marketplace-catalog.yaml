@@ -1,0 +1,6 @@
+# Cases for the curated tier-1 "aws marketplace-catalog" (scripts/console_db/
+# overrides/marketplace-catalog.yaml): the Marketplace page on the global host.
+
+- argv: [marketplace-catalog]
+  url: "https://console.aws.amazon.com/marketplace/subscriptions?region=us-west-2"
+  source: curated

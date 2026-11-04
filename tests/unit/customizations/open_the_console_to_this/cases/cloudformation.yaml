@@ -1,0 +1,105 @@
+# Cases for scripts/console_db/overrides/cloudformation.yaml.  Sample stack
+# and ARN come from scripts/console_db/snapshots/view-samples.tsv (stack
+# mystack, arn:aws:cloudformation:us-west-2:123456789012:stack/mystack/abc-123).
+
+# Stack info page: name or ARN, kept raw like the resolver does.
+- argv: [cloudformation, describe-stacks, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/stackinfo?stackId=mystack"
+  source: curated
+- argv: [cloudformation, describe-stacks, --stack-name, "arn:aws:cloudformation:us-west-2:123456789012:stack/mystack/abc-123"]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/stackinfo?stackId=arn:aws:cloudformation:us-west-2:123456789012:stack/mystack/abc-123"
+  source: curated
+- argv: [cloudformation, describe-stacks]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks"
+  source: curated
+- argv: [cloudformation, update-stack, --stack-name, mystack, --use-previous-template]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/stackinfo?stackId=mystack"
+  source: curated
+- argv: [cloudformation, delete-stack, --stack-name, mystack]
+  region: eu-west-1
+  url: "https://eu-west-1.console.aws.amazon.com/cloudformation/home?region=eu-west-1#/stacks/stackinfo?stackId=mystack"
+  source: curated
+- argv: [cloudformation, deploy, --template-file, template.yaml, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/stackinfo?stackId=mystack"
+  source: curated
+- argv: [cloudformation, wait, stack-exists, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/stackinfo?stackId=mystack"
+  source: curated
+
+# Events tab: describe-stack-events and the stack waiters.
+- argv: [cloudformation, describe-stack-events, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/events?stackId=mystack"
+  source: curated
+- argv: [cloudformation, wait, stack-create-complete, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/events?stackId=mystack"
+  source: curated
+- argv: [cloudformation, wait, stack-update-complete, --stack-name, "arn:aws:cloudformation:us-west-2:123456789012:stack/mystack/abc-123"]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/events?stackId=arn:aws:cloudformation:us-west-2:123456789012:stack/mystack/abc-123"
+  source: curated
+- argv: [cloudformation, wait, stack-delete-complete, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/events?stackId=mystack"
+  source: curated
+- argv: [cloudformation, wait, stack-import-complete, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/events?stackId=mystack"
+  source: curated
+- argv: [cloudformation, wait, stack-rollback-complete, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/events?stackId=mystack"
+  source: curated
+
+# Resources and Template tabs.
+- argv: [cloudformation, describe-stack-resources, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/resources?stackId=mystack"
+  source: curated
+- argv: [cloudformation, list-stack-resources, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/resources?stackId=mystack"
+  source: curated
+- argv: [cloudformation, get-template, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/template?stackId=mystack"
+  source: curated
+
+# Change sets tab; a change-set ARN alone gives the stacks list.
+- argv: [cloudformation, list-change-sets, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/changesets?stackId=mystack"
+  source: curated
+- argv: [cloudformation, describe-change-set, --change-set-name, mycs, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/changesets?stackId=mystack"
+  source: curated
+- argv: [cloudformation, describe-change-set, --change-set-name, "arn:aws:cloudformation:us-west-2:123456789012:changeSet/mycs/abc-123"]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks"
+  source: curated
+- argv: [cloudformation, create-change-set, --stack-name, mystack, --change-set-name, mycs, --template-body, "file://template.yaml"]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/changesets?stackId=mystack"
+  source: curated
+- argv: [cloudformation, execute-change-set, --change-set-name, mycs, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/changesets?stackId=mystack"
+  source: curated
+- argv: [cloudformation, wait, change-set-create-complete, --change-set-name, mycs, --stack-name, mystack]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/changesets?stackId=mystack"
+  source: curated
+
+# Create wizard, even with a name.
+- argv: [cloudformation, create-stack, --stack-name, mystack, --template-body, "file://template.yaml"]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create"
+  source: curated
+
+# package: the artifact bucket on the global S3 host.
+- argv: [cloudformation, package, --template-file, template.yaml, --s3-bucket, mybucket]
+  url: "https://console.aws.amazon.com/s3/buckets/mybucket?region=us-west-2"
+  source: curated
+- argv: [cloudformation, package, --template-file, template.yaml, --s3-bucket, mybucket, --s3-prefix, photos/2026]
+  url: "https://console.aws.amazon.com/s3/buckets/mybucket?region=us-west-2&prefix=photos%2F2026%2F&showversions=false"
+  source: curated
+- argv: [cloudformation, package, --template-file, template.yaml, --s3-bucket, mybucket, --s3-prefix, artifacts/]
+  url: "https://console.aws.amazon.com/s3/buckets/mybucket?region=us-west-2&prefix=artifacts%2F&showversions=false"
+  source: curated
+- argv: [cloudformation, package, --template-file, template.yaml]
+  url: "https://console.aws.amazon.com/s3/buckets?region=us-west-2"
+  source: curated
+
+# Not curated: generated list pages and stack-set pages stay.
+- argv: [cloudformation, list-stacks]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks"
+- argv: [cloudformation, list-stack-sets]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacksets"
+- argv: [cloudformation, describe-stack-set, --stack-set-name, myss]
+  url: "https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacksets/myss/info"

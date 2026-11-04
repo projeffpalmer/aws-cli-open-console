@@ -1,0 +1,37 @@
+# Cases for the curated Firewall Manager pages (scripts/console_db/
+# overrides/fms.yaml): list pages on the global host, detail pages as the
+# resolver builds them.  Ids are made-up samples.
+
+- argv: [fms, list-policies]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/policies?region=us-west-2"
+  source: curated
+- argv: [fms, list-third-party-firewall-firewall-policies, --third-party-firewall, PALO_ALTO_NETWORKS_CLOUD_NGFW]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/policies?region=us-west-2"
+  source: curated
+- argv: [fms, put-policy, --policy, "file://policy.json"]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/policies?region=us-west-2"
+  source: curated
+- argv: [fms, get-policy]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/policies?region=us-west-2"
+  source: curated
+- argv: [fms, get-policy, --policy-id, 12345678-90ab-cdef-1234-567890abcdef]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/policies/12345678-90ab-cdef-1234-567890abcdef?region=us-west-2"
+  source: curated
+- argv: [fms, delete-policy, --policy-id, 12345678-90ab-cdef-1234-567890abcdef]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/policies/12345678-90ab-cdef-1234-567890abcdef?region=us-west-2"
+  source: curated
+- argv: [fms, list-resource-sets]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/resourcesets?region=us-west-2"
+  source: curated
+- argv: [fms, put-resource-set, --resource-set, "file://set.json"]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/resourcesets?region=us-west-2"
+  source: curated
+- argv: [fms, get-resource-set, --identifier, 0123456789abcdef0123]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/resourceset/detailView/0123456789abcdef0123?region=us-west-2"
+  source: curated
+- argv: [fms, delete-resource-set, --identifier, 0123456789abcdef0123]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/resourceset/detailView/0123456789abcdef0123?region=us-west-2"
+  source: curated
+- argv: [fms, list-resource-set-resources]
+  url: "https://console.aws.amazon.com/wafv2/fmsv2/resourcesets?region=us-west-2"
+  source: curated

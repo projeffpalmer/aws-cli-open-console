@@ -1,0 +1,82 @@
+# Curated console pages for "aws bedrock" (plan step 2.4, curator W5).
+# Amazon Bedrock is regional: https://{region}.{host}/bedrock/home...
+#
+# Evidence (2026-11-04):
+#   go/view?arn=...:custom-model/mycm
+#       -> /bedrock/home#/finetune/model?arn=<arn> (raw, no ?region=)
+#   go/view?arn=...:model-customization-job/abc
+#       -> /bedrock/home#/finetune/job?arn=<arn> (raw, no ?region=)
+#   go/view?arn=...:inference-profile/us.anthropic.claude-3 and
+#   go/view?arn=...:application-inference-profile/abc123
+#       -> /bedrock/home?region=<r>#/inference-profiles/<profile id>
+#   foundation-model ARNs, guardrails and every go/list|create of a
+#   Bedrock type -> /bedrock/home
+# The finetune pages take an ARN, so they open only when the identifier is
+# an ARN: the arn_resource param is present only for ARNs and gates the
+# variant, which inserts the full value raw.  Not curated (no evidence):
+# list-foundation-models, get-foundation-model, list-custom-models,
+# list-model-customization-jobs, create-model-customization-job and
+# list-guardrails keep the generated Bedrock home.
+
+aws.bedrock.get-custom-model:
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      is_arn: {arg: --model-identifier, parse: arn_resource}
+      model: {arg: --model-identifier}
+  url:
+    best: "https://{region}.{host}/bedrock/home"
+    variants:
+      - when: [is_arn, model]
+        template: "https://{region}.{host}/bedrock/home#/finetune/model?arn={model:raw}"
+    source: curated
+    verified: "2026-11-04"
+    note: custom model page for a model ARN; a bare name keeps the Bedrock home
+
+aws.bedrock.get-model-customization-job: &customization_job
+  intent:
+    verb: view
+    resource_type: null
+    id_args: []
+    params:
+      is_arn: {arg: --job-identifier, parse: arn_resource}
+      job: {arg: --job-identifier}
+  url:
+    best: "https://{region}.{host}/bedrock/home"
+    variants:
+      - when: [is_arn, job]
+        template: "https://{region}.{host}/bedrock/home#/finetune/job?arn={job:raw}"
+    source: curated
+    verified: "2026-11-04"
+    note: customization job page for a job ARN; a bare name keeps the Bedrock home
+
+aws.bedrock.stop-model-customization-job: *customization_job
+
+aws.bedrock.list-inference-profiles:
+  intent: {verb: list, resource_type: AWS::Bedrock::ApplicationInferenceProfile, id_args: []}
+  url:
+    best: "https://{region}.{host}/bedrock/home?region={region}#/inference-profiles"
+    source: curated
+    verified: path-only
+    note: inference profiles list (prefix of the resolver's profile page)
+
+aws.bedrock.get-inference-profile:
+  intent:
+    verb: view
+    resource_type: AWS::Bedrock::ApplicationInferenceProfile
+    id_args: []
+    params:
+      profile_in_arn: {arg: --inference-profile-identifier, parse: arn_resource}
+      profile: {arg: --inference-profile-identifier}
+  url:
+    best: "https://{region}.{host}/bedrock/home?region={region}#/inference-profiles"
+    variants:
+      - when: [profile_in_arn]
+        template: "https://{region}.{host}/bedrock/home?region={region}#/inference-profiles/{profile_in_arn}"
+      - when: [profile]
+        template: "https://{region}.{host}/bedrock/home?region={region}#/inference-profiles/{profile}"
+    source: curated
+    verified: "2026-11-04"
+    note: inference profile page from a profile id or ARN

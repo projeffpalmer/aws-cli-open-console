@@ -1,0 +1,70 @@
+# Cases for "aws elbv2" (scripts/console_db/overrides/elbv2.yaml).  The
+# load balancer and target group ARNs come from
+# scripts/console_db/snapshots/view-samples.tsv; the listener ARN is the
+# one used in the live go/view?arn= probe (same load balancer).
+# Tier-1 "aws elbv2" stays in services.yaml.
+
+# Generated entries kept as they are.
+- argv: [elbv2, describe-load-balancers]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#LoadBalancers:"
+  source: "resolver:list+view"
+- argv: [elbv2, describe-load-balancers, --load-balancer-arns, "arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/app/my-alb/0123456789abcdef"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#LoadBalancer:loadBalancerArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/app/my-alb/0123456789abcdef"
+  source: "resolver:list+view"
+- argv: [elbv2, describe-load-balancers, --names, my-alb]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#LoadBalancers:"
+  source: "resolver:list+view"
+- argv: [elbv2, describe-target-groups, --target-group-arns, "arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#TargetGroup:targetGroupArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef"
+  source: "resolver:list+view"
+
+# Create wizards.
+- argv: [elbv2, create-load-balancer, --name, my-alb, --subnets, subnet-0123456789abcdef0, subnet-0123456789abcdef1]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#SelectCreateELBWizard:"
+  source: curated
+- argv: [elbv2, create-target-group, --name, my-tg, --protocol, HTTP, --port, "80", --vpc-id, vpc-0123456789abcdef0]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#CreateTargetGroup:"
+  source: curated
+
+# Target group page.
+- argv: [elbv2, describe-target-health, --target-group-arn, "arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#TargetGroup:targetGroupArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef"
+  source: curated
+- argv: [elbv2, describe-target-health]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/v2/home?region=us-west-2#TargetGroups:"
+  source: curated
+- argv: [elbv2, register-targets, --target-group-arn, "arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef", --targets, Id=i-0123456789abcdef0]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#TargetGroup:targetGroupArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef"
+  source: curated
+- argv: [elbv2, deregister-targets, --target-group-arn, "arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef", --targets, Id=i-0123456789abcdef0]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#TargetGroup:targetGroupArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef"
+  source: curated
+- argv: [elbv2, wait, target-in-service, --target-group-arn, "arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#TargetGroup:targetGroupArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef"
+  source: curated
+- argv: [elbv2, wait, target-deregistered, --target-group-arn, "arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef", --targets, Id=i-0123456789abcdef0]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#TargetGroup:targetGroupArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/my-tg/0123456789abcdef"
+  source: curated
+
+# Listeners.
+- argv: [elbv2, describe-listeners, --load-balancer-arn, "arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/app/my-alb/0123456789abcdef"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#LoadBalancer:loadBalancerArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/app/my-alb/0123456789abcdef"
+  source: curated
+- argv: [elbv2, describe-listeners, --listener-arns, "arn:aws:elasticloadbalancing:us-west-2:123456789012:listener/app/my-alb/0123456789abcdef/0123456789abcdef"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#ELBListenerV2:listenerArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:listener/app/my-alb/0123456789abcdef/0123456789abcdef"
+  source: curated
+- argv: [elbv2, describe-listeners]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#LoadBalancers:"
+  source: curated
+- argv: [elbv2, create-listener, --load-balancer-arn, "arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/app/my-alb/0123456789abcdef", --protocol, HTTP, --port, "80"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#LoadBalancer:loadBalancerArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/app/my-alb/0123456789abcdef"
+  source: curated
+- argv: [elbv2, modify-listener, --listener-arn, "arn:aws:elasticloadbalancing:us-west-2:123456789012:listener/app/my-alb/0123456789abcdef/0123456789abcdef", --port, "8080"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#ELBListenerV2:listenerArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:listener/app/my-alb/0123456789abcdef/0123456789abcdef"
+  source: curated
+- argv: [elbv2, describe-rules, --listener-arn, "arn:aws:elasticloadbalancing:us-west-2:123456789012:listener/app/my-alb/0123456789abcdef/0123456789abcdef"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#ELBListenerV2:listenerArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:listener/app/my-alb/0123456789abcdef/0123456789abcdef"
+  source: curated
+- argv: [elbv2, create-rule, --listener-arn, "arn:aws:elasticloadbalancing:us-west-2:123456789012:listener/app/my-alb/0123456789abcdef/0123456789abcdef", --priority, "10"]
+  url: "https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2#ELBListenerV2:listenerArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:listener/app/my-alb/0123456789abcdef/0123456789abcdef"
+  source: curated

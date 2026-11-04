@@ -1,0 +1,142 @@
+# Service layer overrides, keyed by tier-1 CLI name (read by
+# scripts/console_db/services.py).  Keys:
+#   same_as: <name>        reuse that service's resolved console home
+#                          (url.source service-home)
+#   source: console-home   open the console home page
+#   home: <template>       curated home URL template (url.source curated)
+#   slug, scope, namespaces, title, verified, note
+# Every name whose services.tsv redirect lands on console/home (the
+# resolver does not know it) must have an entry here, or the build stops.
+
+# --- The 49 names the resolver does not know (snapshot 2026-11-04) ---
+
+# CLI customizations: no console page of their own.
+agent-toolkit: {source: console-home}  # CLI agent toolkit command
+cli-dev: {source: console-home}  # internal CLI development commands
+configure: {source: console-home}  # local CLI configuration
+history: {source: console-home}  # local CLI command history
+login: {source: console-home}  # local CLI sign-in helper
+logout: {source: console-home}  # clears cached local CLI credentials
+signin: {source: console-home}  # sign-in service API used by aws login
+update: {source: console-home}  # updates the local CLI install
+
+# Services with no console.
+importexport: {source: console-home}  # legacy Import/Export; no console
+sdb: {source: console-home}  # SimpleDB has no console
+simpledbv2: {source: console-home}  # SimpleDB has no console
+
+# Variants of another service: same console.
+bcm-recommended-actions: {same_as: ce}  # Cost Management recommendations
+cloudwatchomni: {same_as: cloudwatch}  # CloudWatch variant
+compute-optimizer-automation: {same_as: compute-optimizer}  # automation API
+connecthealth: {same_as: connect}  # Amazon Connect variant
+ddb: {same_as: dynamodb}  # high-level DynamoDB commands
+eventsv2: {same_as: events}  # EventBridge variant
+iot-managed-integrations: {same_as: iot}  # IoT Core managed integrations
+keyspacesstreams: {same_as: keyspaces}  # Keyspaces CDC streams
+lambda-core: {same_as: lambda}  # Lambda variant
+lambda-microvms: {same_as: lambda}  # Lambda variant
+lambda-web: {same_as: lambda}  # Lambda web deploy commands
+mwaa-serverless: {same_as: mwaa}  # Managed Airflow variant
+pi: {same_as: rds}  # Performance Insights lives in the RDS console
+pricing-plan-manager: {same_as: billing}  # Billing and Cost Management
+resiliencehubv2: {same_as: resiliencehub}  # Resilience Hub variant
+sagemakerjobruntime: {same_as: sagemaker}  # SageMaker runtime API
+sagemakertrainingsessionruntime: {same_as: sagemaker}  # SageMaker runtime API
+signer-data: {same_as: signer}  # Signer data plane
+ssm-guiconnect: {same_as: ssm}  # Systems Manager GUI Connect
+workspaces-instances: {same_as: workspaces}  # WorkSpaces variant
+
+# Believed consoles that failed the live check (2026-11-04): console home.
+cloudcontrol: {source: console-home}  # cloudcontrolapi/home answered 404
+mturk: {source: console-home}  # requester.mturk.com unverifiable (blocked)
+
+# Resolver homes that answer 404 on the regional host (verify-report.md,
+# re-probed 2026-11-04).  The same path loads on the global host (302 to
+# us-east-1, 200), except Data Pipeline (404 on every host: console home)
+# and Inspector Classic (the Inspector v2 home, 200 on the regional host).
+# The tier-1 nodes carry matching curated overrides in <name>.yaml.
+datapipeline: {source: console-home}  # /datapipeline/ answers 404 on every host
+inspector:  # /inspector/home answers 404 on the regional host
+  {home: "https://{region}.{host}/inspector/v2/home?region={region}", verified: "2026-11-04"}
+marketplace-agreement:  # /marketplace/subscriptions: 404 on the regional host
+  {home: "https://{host}/marketplace/subscriptions?region={region}", verified: "2026-11-04"}
+marketplace-catalog:  # /marketplace/subscriptions: 404 on the regional host
+  {home: "https://{host}/marketplace/subscriptions?region={region}", verified: "2026-11-04"}
+marketplace-deployment:  # /marketplace/subscriptions: 404 on the regional host
+  {home: "https://{host}/marketplace/subscriptions?region={region}", verified: "2026-11-04"}
+marketplace-entitlement:  # /marketplace/subscriptions: 404 on the regional host
+  {home: "https://{host}/marketplace/subscriptions?region={region}", verified: "2026-11-04"}
+marketplace-reporting:  # /marketplace/subscriptions: 404 on the regional host
+  {home: "https://{host}/marketplace/subscriptions?region={region}", verified: "2026-11-04"}
+marketplacecommerceanalytics:  # /marketplace/subscriptions: 404 regionally
+  {home: "https://{host}/marketplace/subscriptions?region={region}", verified: "2026-11-04"}
+meteringmarketplace:  # /marketplace/subscriptions: 404 on the regional host
+  {home: "https://{host}/marketplace/subscriptions?region={region}", verified: "2026-11-04"}
+mpa:  # /organizations/v2/home/mpa answers 404 on the regional host
+  {home: "https://{host}/organizations/v2/home/mpa", verified: "2026-11-04"}
+
+# No known console page: console home.
+agent-registry-control: {source: console-home}  # no resolver mapping
+bedrock-agentcore-control:  # no resolver mapping; types are AWS::BedrockAgentCore::*
+  {source: console-home, namespaces: [BedrockAgentCore]}
+devops-agent: {source: console-home}  # no resolver mapping
+elementalinference: {source: console-home}  # no resolver mapping
+endusermessaging: {source: console-home}  # no resolver mapping
+iam-toolbox: {source: console-home}  # no resolver mapping
+interconnect: {source: console-home}  # no resolver mapping
+marketplace-discovery: {source: console-home}  # no resolver mapping
+partnercentral-account: {source: console-home}  # no resolver mapping
+partnercentral-benefits: {source: console-home}  # no resolver mapping
+partnercentral-channel: {source: console-home}  # no resolver mapping
+partnercentral-revenue-measurement: {source: console-home}  # no mapping
+securityagent: {source: console-home}  # no resolver mapping
+sustainability: {source: console-home}  # no resolver mapping
+uxc: {source: console-home}  # no resolver mapping
+wickr: {source: console-home}  # no resolver mapping
+
+# --- CloudFormation namespaces the name match cannot find ---
+
+acm: {namespaces: [CertificateManager]}  # AWS::CertificateManager::*
+amp: {namespaces: [APS]}  # Managed Prometheus is AWS::APS::*
+cognito-identity: {namespaces: [Cognito]}  # identity pools
+cognito-idp: {namespaces: [Cognito]}  # user pools
+configservice: {namespaces: [Config]}  # AWS::Config::*
+connectcases: {namespaces: [Cases]}  # AWS::Cases::*
+es: {namespaces: [Elasticsearch, OpenSearchService]}  # legacy + renamed
+firehose: {namespaces: [KinesisFirehose]}  # AWS::KinesisFirehose::*
+inspector2: {namespaces: [InspectorV2]}  # AWS::InspectorV2::*
+iotdeviceadvisor: {namespaces: [IoTCoreDeviceAdvisor]}  # Device Advisor
+kafka: {namespaces: [MSK]}  # AWS::MSK::*
+keyspaces: {namespaces: [Cassandra]}  # AWS::Cassandra::*
+lexv2-models: {namespaces: [Lex]}  # AWS::Lex::* is Lex V2
+macie2: {namespaces: [Macie]}  # AWS::Macie::*
+medical-imaging: {namespaces: [HealthImaging]}  # AWS::HealthImaging::*
+migration-hub-refactor-spaces: {namespaces: [RefactorSpaces]}  # *::RefactorSpaces
+mq: {namespaces: [AmazonMQ]}  # AWS::AmazonMQ::*
+opensearch: {namespaces: [OpenSearchService]}  # AWS::OpenSearchService::*
+pinpoint-sms-voice-v2: {namespaces: [SMSVOICE]}  # AWS::SMSVOICE::*
+route53-recovery-control-config: {namespaces: [Route53RecoveryControl]}  # ARC
+s3api: {namespaces: [S3, S3Express]}  # buckets and directory buckets
+s3control: {namespaces: [S3, S3ObjectLambda]}  # access points
+schemas: {namespaces: [EventSchemas]}  # EventBridge schemas
+sesv2: {namespaces: [SES]}  # AWS::SES::*
+ssm-sap: {namespaces: [SystemsManagerSAP]}  # AWS::SystemsManagerSAP::*
+sso-admin: {namespaces: [SSO]}  # permission sets and assignments
+timestream-influxdb: {namespaces: [Timestream]}  # AWS::Timestream::*
+timestream-write: {namespaces: [Timestream]}  # AWS::Timestream::*
+
+# --- Namespaces for services the name match misses (step 2.3) ---
+
+bcm-dashboards: {namespaces: [BCM]}  # AWS::BCM::Dashboard
+bedrock-agent: {namespaces: [Bedrock]}  # agents, flows, prompts, KBs
+bedrock-data-automation: {namespaces: [Bedrock]}  # blueprints, DA projects
+chime-sdk-identity: {namespaces: [Chime]}  # AWS::Chime::AppInstance*
+chime-sdk-media-pipelines: {namespaces: [Chime]}  # media pipeline configs
+chime-sdk-messaging: {namespaces: [Chime]}  # AWS::Chime::Channel*
+chime-sdk-voice: {namespaces: [Chime]}  # voice connectors, SIP apps
+cloudhsmv2: {namespaces: [CloudHSM]}  # AWS::CloudHSM::Cluster
+ivs-realtime: {namespaces: [IVS]}  # stages and their configurations
+mediapackage-vod: {namespaces: [MediaPackage]}  # assets, packaging groups
+qconnect: {namespaces: [Wisdom]}  # Amazon Q in Connect is AWS::Wisdom::*
+timestream-query: {namespaces: [Timestream]}  # scheduled queries

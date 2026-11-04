@@ -1,0 +1,34 @@
+# Curated console pages for "aws firehose" (plan step 2.4, curator W3).
+# Firehose is regional: https://{region}.{host}/firehose/home?region={region}#/...
+#
+# Evidence (2026-11-04):
+#   go/create?resourceType=AWS::KinesisFirehose::DeliveryStream -> #/create (types.tsv)
+#   go/view?resourceType=AWS::KinesisFirehose::DeliveryStream&resourceId=zz9idzz9
+#                              -> #/details/zz9idzz9/monitoring (view-by-id.tsv)
+# list-delivery-streams and describe-delivery-stream keep their generated
+# resolver entries.
+
+aws.firehose.create-delivery-stream:
+  intent:
+    verb: create
+    resource_type: AWS::KinesisFirehose::DeliveryStream
+    id_args: []
+  url:
+    best: "https://{region}.{host}/firehose/home?region={region}#/create"
+    source: curated
+    verified: "2026-11-04"
+    note: create Firehose stream wizard (go/create); the stream does not exist yet
+
+aws.firehose.put-record: &stream_page
+  intent:
+    verb: view
+    resource_type: AWS::KinesisFirehose::DeliveryStream
+    id_args: [--delivery-stream-name]
+  url:
+    best: "https://{region}.{host}/firehose/home?region={region}#/streams"
+    with_id: "https://{region}.{host}/firehose/home?region={region}#/details/{id}/monitoring"
+    source: curated
+    verified: "2026-11-04"
+    note: the Firehose stream page (monitoring tab) of --delivery-stream-name
+
+aws.firehose.put-record-batch: *stream_page

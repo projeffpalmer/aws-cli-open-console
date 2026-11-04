@@ -1,0 +1,74 @@
+# Cases for scripts/console_db/overrides/emr.yaml.  Sample cluster id from
+# scripts/console_db/snapshots/view-samples.tsv (j-ABC).
+- argv: [emr, describe-cluster, --cluster-id, j-ABC]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, describe-cluster]
+  url: "https://us-west-2.console.aws.amazon.com/emr/home?region=us-west-2#/clusters"
+  source: curated
+- argv: [emr, list-steps, --cluster-id, j-ABC]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, describe-step, --cluster-id, j-ABC, --step-id, s-ABC]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, add-steps, --cluster-id, j-ABC, --steps, "Type=Spark,Name=job,Args=[s3://mybucket/app.py]"]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, cancel-steps, --cluster-id, j-ABC, --step-ids, s-ABC]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, wait, step-complete, --cluster-id, j-ABC, --step-id, s-ABC]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, list-instances, --cluster-id, j-ABC]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, add-instance-groups, --cluster-id, j-ABC, --instance-groups, "InstanceGroupType=TASK,InstanceCount=2,InstanceType=m5.xlarge"]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, modify-cluster-attributes, --cluster-id, j-ABC, --termination-protected]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, install-applications, --cluster-id, j-ABC, --apps, Name=Hive]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, create-hbase-backup, --cluster-id, j-ABC, --dir, "s3://mybucket/backup"]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, disable-hbase-backups, --cluster-id, j-ABC, --full]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, restore-from-hbase-backup, --cluster-id, j-ABC, --dir, "s3://mybucket/backup"]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, schedule-hbase-backup, --cluster-id, j-ABC, --type, full, --dir, "s3://mybucket/backup", --interval, "1", --unit, days]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, ssh, --cluster-id, j-ABC, --key-pair-file, ./key.pem]
+  region: eu-west-1
+  url: "https://eu-west-1.console.aws.amazon.com/elasticmapreduce/home?region=eu-west-1#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, socks, --cluster-id, j-ABC, --key-pair-file, ./key.pem]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, put, --cluster-id, j-ABC, --key-pair-file, ./key.pem, --src, ./app.py]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, get, --cluster-id, j-ABC, --key-pair-file, ./key.pem, --src, /home/hadoop/out.txt]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, terminate-clusters, --cluster-ids, j-ABC]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"
+  source: curated
+- argv: [emr, terminate-clusters, --cluster-ids, j-ABC, j-DEF]
+  url: "https://us-west-2.console.aws.amazon.com/emr/home?region=us-west-2#/clusters"
+  source: curated
+- argv: [emr, create-cluster, --release-label, emr-7.0.0, --instance-type, m5.xlarge, --instance-count, "3", --use-default-roles]
+  url: "https://us-west-2.console.aws.amazon.com/emr/home?region=us-west-2#/createCluster"
+  source: curated
+# Generated entries that stay.
+- argv: [emr, list-clusters, --active]
+  url: "https://us-west-2.console.aws.amazon.com/emr/home?region=us-west-2#/clusters"
+- argv: [emr, wait, cluster-running, --cluster-id, j-ABC]
+  url: "https://us-west-2.console.aws.amazon.com/elasticmapreduce/home?region=us-west-2#cluster-details:j-ABC"

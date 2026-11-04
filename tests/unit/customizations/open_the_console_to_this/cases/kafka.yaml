@@ -1,0 +1,29 @@
+# Cases for scripts/console_db/overrides/kafka.yaml.  Sample cluster ARN
+# from scripts/console_db/snapshots/view-samples.tsv.
+- argv: [kafka, describe-cluster, --cluster-arn, "arn:aws:kafka:us-west-2:123456789012:cluster/mycluster/uuid"]
+  url: "https://us-west-2.console.aws.amazon.com/msk/home?region=us-west-2#/cluster/arn%3Aaws%3Akafka%3Aus-west-2%3A123456789012%3Acluster%2Fmycluster%2Fuuid/view?tabId=details"
+  source: curated
+- argv: [kafka, describe-cluster-v2, --cluster-arn, "arn:aws:kafka:us-west-2:123456789012:cluster/mycluster/uuid"]
+  url: "https://us-west-2.console.aws.amazon.com/msk/home?region=us-west-2#/cluster/arn%3Aaws%3Akafka%3Aus-west-2%3A123456789012%3Acluster%2Fmycluster%2Fuuid/view?tabId=details"
+  source: curated
+- argv: [kafka, list-nodes, --cluster-arn, "arn:aws:kafka:us-west-2:123456789012:cluster/mycluster/uuid"]
+  url: "https://us-west-2.console.aws.amazon.com/msk/home?region=us-west-2#/cluster/arn%3Aaws%3Akafka%3Aus-west-2%3A123456789012%3Acluster%2Fmycluster%2Fuuid/view?tabId=details"
+  source: curated
+- argv: [kafka, get-bootstrap-brokers, --cluster-arn, "arn:aws:kafka:eu-west-1:123456789012:cluster/mycluster/uuid"]
+  region: eu-west-1
+  url: "https://eu-west-1.console.aws.amazon.com/msk/home?region=eu-west-1#/cluster/arn%3Aaws%3Akafka%3Aeu-west-1%3A123456789012%3Acluster%2Fmycluster%2Fuuid/view?tabId=details"
+  source: curated
+- argv: [kafka, describe-cluster]
+  url: "https://us-west-2.console.aws.amazon.com/msk/home?region=us-west-2#/clusters"
+  source: curated
+- argv: [kafka, create-cluster, --cluster-name, mycluster, --kafka-version, 3.6.0, --number-of-broker-nodes, "3"]
+  url: "https://us-west-2.console.aws.amazon.com/msk/home?region=us-west-2#/cluster/create?isProvisionedCreate=true"
+  source: curated
+- argv: [kafka, create-cluster-v2, --cluster-name, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/msk/home?region=us-west-2#/cluster/create?isProvisionedCreate=true"
+  source: curated
+# Generated entries that stay.
+- argv: [kafka, list-clusters]
+  url: "https://us-west-2.console.aws.amazon.com/msk/home?region=us-west-2#/clusters"
+- argv: [kafka, list-clusters-v2]
+  url: "https://us-west-2.console.aws.amazon.com/msk/home?region=us-west-2#/clusters"

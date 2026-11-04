@@ -1,0 +1,131 @@
+# Cases for the curated "aws ecs" nodes (scripts/console_db/overrides/ecs.yaml).
+# Sample names and ARNs come from scripts/console_db/snapshots/view-samples.tsv
+# (mycluster, mysvc, mytd:3).
+
+# Clusters.
+- argv: [ecs, list-clusters]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters?region=us-west-2"
+- argv: [ecs, describe-clusters, --clusters, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services?region=us-west-2"
+  source: curated
+- argv: [ecs, describe-clusters, --clusters, "arn:aws:ecs:us-west-2:123456789012:cluster/mycluster"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services?region=us-west-2"
+  source: curated
+- argv: [ecs, describe-clusters]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters?region=us-west-2"
+  source: curated
+- argv: [ecs, create-cluster, --cluster-name, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/create-cluster?region=us-west-2"
+  source: curated
+- argv: [ecs, delete-cluster, --cluster, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services?region=us-west-2"
+  source: curated
+- argv: [ecs, update-cluster, --cluster, mycluster, --settings, "name=containerInsights,value=enabled"]
+  region: eu-west-1
+  url: "https://eu-west-1.console.aws.amazon.com/ecs/v2/clusters/mycluster/services?region=eu-west-1"
+  source: curated
+- argv: [ecs, list-container-instances, --cluster, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services?region=us-west-2"
+  source: curated
+- argv: [ecs, list-container-instances]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/default/services?region=us-west-2"
+  source: curated
+
+# Services.
+- argv: [ecs, list-services, --cluster, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services?region=us-west-2"
+  source: curated
+- argv: [ecs, list-services]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/default/services?region=us-west-2"
+  source: curated
+- argv: [ecs, create-service, --cluster, mycluster, --service-name, mysvc, --task-definition, "mytd:3"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services?region=us-west-2"
+  source: curated
+- argv: [ecs, describe-services, --cluster, mycluster, --services, mysvc]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services/mysvc/health?region=us-west-2"
+  source: curated
+- argv: [ecs, describe-services, --cluster, "arn:aws:ecs:us-west-2:123456789012:cluster/mycluster", --services, "arn:aws:ecs:us-west-2:123456789012:service/mycluster/mysvc"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services/mysvc/health?region=us-west-2"
+  source: curated
+- argv: [ecs, describe-services, --services, mysvc]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/default/services/mysvc/health?region=us-west-2"
+  source: curated
+- argv: [ecs, update-service, --cluster, mycluster, --service, mysvc, --desired-count, "2"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services/mysvc/health?region=us-west-2"
+  source: curated
+- argv: [ecs, delete-service, --cluster, mycluster, --service, mysvc, --force]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services/mysvc/health?region=us-west-2"
+  source: curated
+- argv: [ecs, deploy, --cluster, mycluster, --service, mysvc, --task-definition, ./taskdef.json, --codedeploy-appspec, ./appspec.yaml]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services/mysvc/health?region=us-west-2"
+  source: curated
+- argv: [ecs, wait, services-stable, --cluster, mycluster, --services, mysvc]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services/mysvc/health?region=us-west-2"
+  source: curated
+- argv: [ecs, wait, services-inactive, --cluster, mycluster, --services, mysvc]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/services/mysvc/health?region=us-west-2"
+  source: curated
+- argv: [ecs, monitor-express-gateway-service, --service-arn, "arn:aws:ecs:us-west-2:123456789012:service/mycluster/mysvc"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/redirect?arn=arn%3Aaws%3Aecs%3Aus-west-2%3A123456789012%3Aservice%2Fmycluster%2Fmysvc&region=us-west-2"
+  source: curated
+
+# Tasks.
+- argv: [ecs, list-tasks, --cluster, mycluster]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/tasks?region=us-west-2"
+  source: curated
+- argv: [ecs, run-task, --cluster, mycluster, --task-definition, "mytd:3"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/tasks?region=us-west-2"
+  source: curated
+- argv: [ecs, start-task, --cluster, mycluster, --task-definition, "mytd:3", --container-instances, 0123456789abcdef0123456789abcdef]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/tasks?region=us-west-2"
+  source: curated
+- argv: [ecs, describe-tasks, --cluster, mycluster, --tasks, "arn:aws:ecs:us-west-2:123456789012:task/mycluster/0123456789abcdef0123456789abcdef"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/tasks/0123456789abcdef0123456789abcdef?region=us-west-2"
+  source: curated
+- argv: [ecs, stop-task, --cluster, mycluster, --task, 0123456789abcdef0123456789abcdef]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/tasks/0123456789abcdef0123456789abcdef?region=us-west-2"
+  source: curated
+- argv: [ecs, execute-command, --cluster, mycluster, --task, 0123456789abcdef0123456789abcdef, --command, /bin/sh, --interactive]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/tasks/0123456789abcdef0123456789abcdef?region=us-west-2"
+  source: curated
+- argv: [ecs, wait, tasks-stopped, --tasks, 0123456789abcdef0123456789abcdef]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/default/tasks/0123456789abcdef0123456789abcdef?region=us-west-2"
+  source: curated
+- argv: [ecs, wait, tasks-running, --cluster, mycluster, --tasks, 0123456789abcdef0123456789abcdef]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/clusters/mycluster/tasks/0123456789abcdef0123456789abcdef?region=us-west-2"
+  source: curated
+
+# Task definitions.
+- argv: [ecs, list-task-definitions]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/task-definitions?region=us-west-2"
+- argv: [ecs, register-task-definition, --cli-input-json, "file://taskdef.json"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/create-task-definition?region=us-west-2"
+- argv: [ecs, describe-task-definition, --task-definition, "mytd:3"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/task-definitions/mytd/3?region=us-west-2"
+  source: curated
+- argv: [ecs, describe-task-definition, --task-definition, mytd]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/task-definitions?region=us-west-2"
+  source: curated
+- argv: [ecs, describe-task-definition, --task-definition, "arn:aws:ecs:us-west-2:123456789012:task-definition/mytd:3"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/redirect?arn=arn%3Aaws%3Aecs%3Aus-west-2%3A123456789012%3Atask-definition%2Fmytd%3A3&region=us-west-2"
+  source: curated
+
+# Capacity providers and task-definition deletion: only ARNs use the redirect page.
+- argv: [ecs, create-capacity-provider, --name, mycp, --auto-scaling-group-provider, "autoScalingGroupArn=x"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/home"
+  source: curated
+- argv: [ecs, update-capacity-provider, --name, mycp, --auto-scaling-group-provider, "managedTerminationProtection=DISABLED"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/home"
+  source: curated
+- argv: [ecs, describe-capacity-providers, --capacity-providers, "arn:aws:ecs:us-west-2:123456789012:capacity-provider/mycp"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/redirect?arn=arn%3Aaws%3Aecs%3Aus-west-2%3A123456789012%3Acapacity-provider%2Fmycp&region=us-west-2"
+  source: curated
+- argv: [ecs, describe-capacity-providers, --capacity-providers, FARGATE]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/home"
+  source: curated
+- argv: [ecs, delete-task-definitions, --task-definitions, "mytd:3"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/task-definitions?region=us-west-2"
+  source: curated
+- argv: [ecs, delete-task-definitions, --task-definitions, "arn:aws:ecs:us-west-2:123456789012:task-definition/mytd:3"]
+  url: "https://us-west-2.console.aws.amazon.com/ecs/v2/redirect?arn=arn%3Aaws%3Aecs%3Aus-west-2%3A123456789012%3Atask-definition%2Fmytd%3A3&region=us-west-2"
+  source: curated

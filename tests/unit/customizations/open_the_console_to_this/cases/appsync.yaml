@@ -1,0 +1,46 @@
+# Cases for the curated "aws appsync" nodes (scripts/console_db/overrides/appsync.yaml).
+# Sample API id abc and data source myds come from view-samples.tsv and the go/view?arn= probes.
+- argv: [appsync, get-graphql-api, --api-id, abc]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/"
+- argv: [appsync, create-graphql-api, --name, myapi, --authentication-type, API_KEY]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/create"
+  source: curated
+- argv: [appsync, list-resolvers, --api-id, abc, --type-name, Query]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/"
+  source: curated
+- argv: [appsync, get-resolver, --api-id, abc, --type-name, Query, --field-name, getFoo]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/"
+  source: curated
+- argv: [appsync, create-resolver, --api-id, abc, --type-name, Query, --field-name, getFoo]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/"
+  source: curated
+- argv: [appsync, get-schema-creation-status, --api-id, abc]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/"
+  source: curated
+- argv: [appsync, start-schema-creation, --api-id, abc, --definition, "fileb://schema.graphql"]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/"
+  source: curated
+- argv: [appsync, get-introspection-schema, --api-id, abc, --format, SDL, schema.graphql]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/"
+  source: curated
+- argv: [appsync, list-types, --api-id, abc, --format, SDL]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/"
+  source: curated
+- argv: [appsync, list-functions, --api-id, abc]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/"
+  source: curated
+- argv: [appsync, list-functions]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2"
+  source: curated
+- argv: [appsync, list-data-sources, --api-id, abc]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/datasources"
+  source: curated
+- argv: [appsync, create-data-source, --api-id, abc, --name, myds, --type, NONE]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/datasources"
+  source: curated
+- argv: [appsync, get-data-source, --api-id, abc, --name, myds]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/datasources/myds/edit"
+  source: curated
+- argv: [appsync, update-data-source, --api-id, abc, --name, myds, --type, NONE]
+  url: "https://us-west-2.console.aws.amazon.com/appsync/home?region=us-west-2#/abc/v1/datasources/myds/edit"
+  source: curated

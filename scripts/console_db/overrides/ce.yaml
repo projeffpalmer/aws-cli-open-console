@@ -1,0 +1,31 @@
+# Curated console pages for "aws ce" (plan step 2.4, curator W5).  Cost
+# Explorer lives in the global Billing and Cost Management console,
+# https://{host}/cost-management/home (the ce tier-1 row).
+#
+# Evidence (2026-11-04):
+#   go/view?arn=arn:aws:ce::123456789012:anomalymonitor/<uuid>
+#       -> https://console.aws.amazon.com/cost-management/home#/anomaly-detection/monitors/<uuid>
+#   docs getting-started-ad.html shows .../cost-management/home#/anomaly-
+#   detection/monitors/<monitor-id>/anomalies/<anomaly-id>
+# Only get-anomalies with --monitor-arn is curated.  Not curated (no
+# evidence for a Cost Explorer, forecast, Savings Plans utilization or RI
+# utilization fragment): get-cost-and-usage, get-cost-forecast,
+# get-dimension-values, get-savings-plans-utilization and
+# get-reservation-utilization keep the generated service home;
+# get-cost-categories keeps its generated list page.
+
+aws.ce.get-anomalies:
+  intent:
+    verb: view
+    resource_type: AWS::CE::AnomalyMonitor
+    id_args: []
+    params:
+      monitor: {arg: --monitor-arn, parse: arn_resource}
+  url:
+    best: "https://{host}/cost-management/home#/anomaly-detection"
+    variants:
+      - when: [monitor]
+        template: "https://{host}/cost-management/home#/anomaly-detection/monitors/{monitor}"
+    source: curated
+    verified: "2026-11-04"
+    note: the anomaly monitor's page (--monitor-arn), else Cost Anomaly Detection

@@ -1,0 +1,86 @@
+# Curated console pages for "aws appsync" (plan step 2.4, group W4).
+# AppSync is a regional console: https://{region}.{host}/appsync/home?region=<r>#/...
+#
+# Evidence (2026-11-04):
+#   go/create?resourceType=AWS::AppSync::GraphQLApi -> #/create
+#   go/view?resourceType=AWS::AppSync::GraphQLApi&resourceId=zz9idzz9 -> #/zz9idzz9/v1/
+#   go/view?arn=arn:aws:appsync:...:apis/abc/datasources/myds -> #/abc/v1/datasources/myds/edit
+#   go/view?arn=...:apis/abc/types/Query/resolvers/getFoo     -> appsync home
+#   go/list?resourceType=AWS::AppSync::GraphQLApi -> appsync home (no list page
+#     evidenced, so list-graphql-apis keeps its entry).
+# The data-source list fragment #/<api>/v1/datasources is the parent of the
+# evidenced detail fragment (path-only).  Schema, type, resolver and function
+# operations open the API page.
+
+aws.appsync.create-graphql-api:
+  intent:
+    verb: create
+    resource_type: AWS::AppSync::GraphQLApi
+    id_args: []
+  url:
+    best: "https://{region}.{host}/appsync/home?region={region}#/create"
+    source: curated
+    verified: "2026-11-04"
+    note: create-API wizard; the generated entry put --name where the API id goes
+
+aws.appsync.list-resolvers: &as_api
+  intent:
+    verb: view
+    resource_type: AWS::AppSync::GraphQLApi
+    id_args: [--api-id]
+  url:
+    best: "https://{region}.{host}/appsync/home?region={region}"
+    with_id: "https://{region}.{host}/appsync/home?region={region}#/{id}/v1/"
+    source: curated
+    verified: "2026-11-04"
+    note: the API page of --api-id
+aws.appsync.get-schema-creation-status: *as_api
+aws.appsync.start-schema-creation: *as_api
+aws.appsync.get-introspection-schema: *as_api
+aws.appsync.list-types: *as_api
+aws.appsync.list-functions: *as_api
+aws.appsync.get-resolver: *as_api
+aws.appsync.create-resolver: *as_api
+
+aws.appsync.list-data-sources:
+  intent:
+    verb: list
+    resource_type: AWS::AppSync::DataSource
+    id_args: [--api-id]
+  url:
+    best: "https://{region}.{host}/appsync/home?region={region}"
+    with_id: "https://{region}.{host}/appsync/home?region={region}#/{id}/v1/datasources"
+    source: curated
+    verified: path-only
+    note: data sources of --api-id (parent of the evidenced data-source fragment)
+aws.appsync.create-data-source:
+  intent:
+    verb: create
+    resource_type: AWS::AppSync::DataSource
+    id_args: [--api-id]
+  url:
+    best: "https://{region}.{host}/appsync/home?region={region}"
+    with_id: "https://{region}.{host}/appsync/home?region={region}#/{id}/v1/datasources"
+    source: curated
+    verified: path-only
+    note: data sources of --api-id (parent of the evidenced data-source fragment)
+
+aws.appsync.get-data-source: &as_ds
+  intent:
+    verb: view
+    resource_type: AWS::AppSync::DataSource
+    id_args: []
+    params:
+      api: {arg: --api-id}
+      ds: {arg: --name}
+  url:
+    best: "https://{region}.{host}/appsync/home?region={region}"
+    variants:
+      - when: [api, ds]
+        template: "https://{region}.{host}/appsync/home?region={region}#/{api}/v1/datasources/{ds}/edit"
+      - when: [api]
+        template: "https://{region}.{host}/appsync/home?region={region}#/{api}/v1/"
+    source: curated
+    verified: "2026-11-04"
+    note: data-source page (go/view?arn= of a datasource ARN)
+aws.appsync.update-data-source: *as_ds

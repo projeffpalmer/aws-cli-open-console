@@ -1,0 +1,107 @@
+# Cases for the curated custom tier-1 commands and their subcommands
+# (scripts/console_db/overrides/customs.yaml).  Tier-1 "aws configure"
+# stays in services.yaml (not curated, see customs.yaml).
+
+# configure set / import / export-credentials / mfa-login: IAM security
+# credentials; positionals and options do not change the page.
+- argv: [configure, set, region, eu-west-1]
+  url: "https://console.aws.amazon.com/iam/home#/security_credentials"
+  source: curated
+- argv: [configure, import, --csv, "file://credentials.csv"]
+  url: "https://console.aws.amazon.com/iam/home#/security_credentials"
+  source: curated
+- argv: [configure, export-credentials, --format, env]
+  url: "https://console.aws.amazon.com/iam/home#/security_credentials"
+  source: curated
+- argv: [configure, mfa-login]
+  url: "https://console.aws.amazon.com/iam/home#/security_credentials"
+  source: curated
+- argv: [configure, set, region, us-gov-west-1]
+  region: us-gov-west-1
+  partition: aws-us-gov
+  url: "https://console.amazonaws-us-gov.com/iam/home#/security_credentials"
+  source: curated
+
+# configure sso / sso-session: IAM Identity Center in the current region.
+- argv: [configure, sso]
+  url: "https://us-west-2.console.aws.amazon.com/singlesignon/home?region=us-west-2"
+  source: curated
+- argv: [configure, sso-session]
+  region: eu-central-1
+  url: "https://eu-central-1.console.aws.amazon.com/singlesignon/home?region=eu-central-1"
+  source: curated
+
+# Every other custom command: the console home.
+- argv: [configure, list]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [configure, get, region]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [configure, list-profiles]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [configure, wizard]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [configure, add-model, --service-model, "file://model.json"]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [configure, agent-toolkit]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [history]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [history, list]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [history, show, 0123456789abcdef]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [cli-dev]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [cli-dev, wizard-dev]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [update]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [agent-toolkit]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [agent-toolkit, add-skill]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [agent-toolkit, check-skill-updates]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [agent-toolkit, get-skill-file]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [agent-toolkit, get-skill-metadata]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [agent-toolkit, list-available-skills]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [agent-toolkit, list-installed-skills]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [agent-toolkit, remove-skill]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [agent-toolkit, search-skills]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [agent-toolkit, update-skill]
+  region: eu-west-1
+  url: "https://console.aws.amazon.com/console/home?region=eu-west-1"
+  source: curated
+- argv: [login]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated
+- argv: [logout]
+  url: "https://console.aws.amazon.com/console/home?region=us-west-2"
+  source: curated

@@ -1,0 +1,59 @@
+# Cases for scripts/console_db/overrides/events.yaml.  Sample rule myrule,
+# bus mybus and ARNs from scripts/console_db/snapshots/view-samples.tsv.
+
+# Rule page, default bus or the named bus (name or ARN).
+- argv: [events, describe-rule, --name, myrule]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/default/rules/myrule"
+  source: curated
+- argv: [events, describe-rule, --name, myrule, --event-bus-name, mybus]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/mybus/rules/myrule"
+  source: curated
+- argv: [events, describe-rule, --name, myrule, --event-bus-name, "arn:aws:events:us-west-2:123456789012:event-bus/mybus"]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/mybus/rules/myrule"
+  source: curated
+- argv: [events, describe-rule]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/rules"
+  source: curated
+- argv: [events, enable-rule, --name, myrule]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/default/rules/myrule"
+  source: curated
+- argv: [events, disable-rule, --name, myrule, --event-bus-name, mybus]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/mybus/rules/myrule"
+  source: curated
+- argv: [events, put-rule, --name, myrule, --schedule-expression, "rate(5 minutes)"]
+  region: us-east-1
+  url: "https://us-east-1.console.aws.amazon.com/events/home?region=us-east-1#/eventbus/default/rules/myrule"
+  source: curated
+- argv: [events, delete-rule, --name, myrule]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/default/rules/myrule"
+  source: curated
+
+# Targets: the rule page from --rule.
+- argv: [events, list-targets-by-rule, --rule, myrule]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/default/rules/myrule"
+  source: curated
+- argv: [events, put-targets, --rule, myrule, --event-bus-name, mybus, --targets, "Id=1,Arn=arn:aws:sqs:us-west-2:123456789012:myqueue"]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/mybus/rules/myrule"
+  source: curated
+- argv: [events, remove-targets, --rule, myrule, --ids, "1"]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/default/rules/myrule"
+  source: curated
+
+# Event bus page.
+- argv: [events, describe-event-bus, --name, mybus]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/mybus"
+  source: curated
+- argv: [events, describe-event-bus, --name, "arn:aws:events:us-west-2:123456789012:event-bus/mybus"]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/mybus"
+  source: curated
+- argv: [events, describe-event-bus]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbus/default"
+  source: curated
+
+# Not curated: generated list pages stay.
+- argv: [events, list-rules]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/rules"
+- argv: [events, list-event-buses]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/eventbuses"
+- argv: [events, list-archives]
+  url: "https://us-west-2.console.aws.amazon.com/events/home?region=us-west-2#/archives"
