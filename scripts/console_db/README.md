@@ -1,4 +1,4 @@
-# Research evidence for the `--in-console` plan
+# Research evidence for the `--console-link` plan
 
 Everything here was captured on 2026-11-04 against the live AWS console, unauthenticated.
 The console's `go/` resolver answers with an HTTP 302 whose `Location` is the current

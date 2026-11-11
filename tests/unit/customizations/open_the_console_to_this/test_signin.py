@@ -30,6 +30,9 @@ from awscli.testutils import mock, unittest
 
 ACCOUNT = '123456789012'
 FEDERATED_ARN = f'arn:aws:sts::{ACCOUNT}:federated-user/{signin.ISSUER}'
+ROLE_ARN = f'arn:aws:sts::{ACCOUNT}:assumed-role/Admin/session'
+ROOT_ARN = f'arn:aws:iam::{ACCOUNT}:root'
+USER_ARN = f'arn:aws:iam::{ACCOUNT}:user/alice'
 DESTINATION = (
     'https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2'
     '#InstanceDetails:instanceId=i-0123456789abcdef0&x=1'
@@ -80,14 +83,23 @@ def federation_response():
 
 
 def make_session(
-    keys=TEMP_KEYS, sts_response=None, sts_error=None, ca_bundle=None
+    keys=TEMP_KEYS,
+    sts_response=None,
+    sts_error=None,
+    ca_bundle=None,
+    method='env',
+    caller_arn=ROLE_ARN,
 ):
     session = mock.Mock()
     session.get_config_variable.return_value = ca_bundle
     session.get_credentials.return_value = (
-        None if keys is None else make_credentials(keys)
+        None if keys is None else make_credentials(keys, method)
     )
     sts = mock.Mock()
+    sts.get_caller_identity.return_value = {
+        'Account': ACCOUNT,
+        'Arn': caller_arn,
+    }
     if sts_error is not None:
         sts.get_federation_token.side_effect = sts_error
     else:
@@ -241,13 +253,66 @@ class TestFederationLoginUrl(SigninTestCase):
             kwargs.get('destination', DESTINATION),
             partition,
             kwargs.get('region', 'us-west-2'),
-            kwargs.get('account_resolver', mock.Mock()),
+            kwargs.get(
+                'account_resolver', AccountResolver(session, 'us-west-2')
+            ),
         )
 
-    def test_temporary_credentials_skip_sts(self):
+    def test_role_session_providers_skip_sts(self):
+        for method in sorted(signin.ROLE_SESSION_PROVIDERS):
+            with self.subTest(method=method):
+                session, sts = make_session(TEMP_KEYS, method=method)
+                self.login_url(session)
+                session.create_client.assert_not_called()
+
+    def test_other_temporary_credentials_check_the_identity_only(self):
+        for arn in (ROLE_ARN, FEDERATED_ARN):
+            with self.subTest(arn=arn):
+                session, sts = make_session(TEMP_KEYS, caller_arn=arn)
+                resolver = AccountResolver(session, 'us-west-2')
+                self.login_url(session, account_resolver=resolver)
+                sts.get_caller_identity.assert_called_once_with()
+                sts.get_federation_token.assert_not_called()
+                # The account id lookup reuses the same response.
+                self.assertEqual(resolver.get(), ACCOUNT)
+                sts.get_caller_identity.assert_called_once_with()
+
+    def test_non_role_temporary_credentials_are_refused(self):
+        cases = [
+            (ROOT_ARN, 'login', 'root user'),
+            (USER_ARN, 'login', 'IAM user'),
+            (USER_ARN, 'env', 'IAM user'),
+            (ROOT_ARN, 'shared-credentials-file', 'root user'),
+        ]
+        for arn, method, kind in cases:
+            with self.subTest(arn=arn, method=method):
+                self.http_get.reset_mock()
+                session, sts = make_session(
+                    TEMP_KEYS, method=method, caller_arn=arn
+                )
+                self.assert_signin_error(
+                    session,
+                    f'{kind} session credentials cannot sign in to the '
+                    'console through federation; only role and federated '
+                    'user sessions can',
+                    secrets=secrets_of(TEMP_KEYS),
+                )
+                self.http_get.assert_not_called()
+                sts.get_federation_token.assert_not_called()
+
+    def test_unknown_identity_still_attempts_signin(self):
+        session, sts = make_session(TEMP_KEYS, method='login')
+        sts.get_caller_identity.side_effect = ClientError(
+            {'Error': {'Code': 'AccessDenied', 'Message': 'no'}},
+            'GetCallerIdentity',
+        )
+        url = self.login_url(session)
+        self.assertEqual(query_of(url)['SigninToken'], [SIGNIN_TOKEN])
+
+    def test_temporary_credentials_skip_get_federation_token(self):
         session, sts = make_session(TEMP_KEYS)
         self.login_url(session)
-        session.create_client.assert_not_called()
+        sts.get_federation_token.assert_not_called()
         self.assertEqual(
             self.session_param(),
             {
@@ -491,8 +556,28 @@ class TestFederationLoginUrl(SigninTestCase):
 class TestWrap(SigninTestCase):
     def wrap(self, session, partition='aws'):
         return signin.wrap(
-            session, DESTINATION, partition, 'us-west-2', mock.Mock()
+            session,
+            DESTINATION,
+            partition,
+            'us-west-2',
+            AccountResolver(session, 'us-west-2'),
         )
+
+    def test_aws_login_root_session_opens_plain_url_with_warning(self):
+        session, _ = make_session(
+            TEMP_KEYS, method='login', caller_arn=ROOT_ARN
+        )
+        self.assertEqual(
+            self.wrap(session),
+            (
+                DESTINATION,
+                'Console sign-in failed (root user session credentials '
+                'cannot sign in to the console through federation; only '
+                'role and federated user sessions can). '
+                f'{NO_SIGNIN}',
+            ),
+        )
+        self.http_get.assert_not_called()
 
     def test_no_credentials(self):
         session, _ = make_session(None)
@@ -578,7 +663,11 @@ class TestNoSecretsInLogs(SigninTestCase):
         session, sts = make_session(keys)
         sts.get_federation_token.side_effect = self.simulate_library_logs()
         url, warning = signin.wrap(
-            session, DESTINATION, 'aws', 'us-west-2', mock.Mock()
+            session,
+            DESTINATION,
+            'aws',
+            'us-west-2',
+            AccountResolver(session, 'us-west-2'),
         )
         self.assertIsNone(warning)
         self.assertIn('SigninToken=', url)
@@ -620,7 +709,11 @@ class TestNoSecretsInLogs(SigninTestCase):
         self.http_get.side_effect = fail
         session, _ = make_session(TEMP_KEYS)
         url, warning = signin.wrap(
-            session, DESTINATION, 'aws', 'us-west-2', mock.Mock()
+            session,
+            DESTINATION,
+            'aws',
+            'us-west-2',
+            AccountResolver(session, 'us-west-2'),
         )
         self.assertEqual(url, DESTINATION)
         self.assert_no_secrets(

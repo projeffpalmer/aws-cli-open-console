@@ -101,7 +101,7 @@ class TestInConsole(BaseAWSCommandParamsTest):
         self.open_browser.assert_called_once_with(url)
 
     def test_s3_ls_long_term_keys(self):
-        stdout, stderr, rc = self.run_cmd('s3 ls --in-console')
+        stdout, stderr, rc = self.run_cmd('s3 ls --console-link')
         self.assertEqual(stdout, S3_BUCKETS_US_EAST_1 + '\n')
         self.assertEqual(stderr, '')
         self.assertEqual(self.operation_names(), ['GetFederationToken'])
@@ -116,14 +116,14 @@ class TestInConsole(BaseAWSCommandParamsTest):
         self.assertNotIn('secret_key', token_url)
 
     def test_flag_before_the_command(self):
-        stdout, _, _ = self.run_cmd('--in-console s3 ls')
+        stdout, _, _ = self.run_cmd('--console-link s3 ls')
         self.assertEqual(stdout, S3_BUCKETS_US_EAST_1 + '\n')
         self.assert_signed_in(S3_BUCKETS_US_EAST_1)
 
     def test_ec2_detail_page_on_regional_host(self):
         stdout, _, _ = self.run_cmd(
             'ec2 describe-instances --instance-ids i-0123456789abcdef0 '
-            '--in-console --region us-west-2'
+            '--console-link --region us-west-2'
         )
         self.assertEqual(stdout, EC2_INSTANCE_US_WEST_2 + '\n')
         self.assertEqual(self.operation_names(), ['GetFederationToken'])
@@ -131,19 +131,43 @@ class TestInConsole(BaseAWSCommandParamsTest):
 
     def test_flag_between_service_and_operation(self):
         stdout, _, _ = self.run_cmd(
-            'ec2 --in-console describe-instances --region us-west-2 '
+            'ec2 --console-link describe-instances --region us-west-2 '
             '--instance-ids i-0123456789abcdef0'
         )
         self.assertEqual(stdout, EC2_INSTANCE_US_WEST_2 + '\n')
 
-    def test_temporary_credentials_skip_sts(self):
+    def test_temporary_role_credentials_skip_get_federation_token(self):
         self.environ['AWS_SESSION_TOKEN'] = 'session_token'
-        stdout, stderr, _ = self.run_cmd('s3 ls --in-console')
+        self.parsed_response = {
+            'Account': ACCOUNT,
+            'Arn': f'arn:aws:sts::{ACCOUNT}:assumed-role/Admin/me',
+        }
+        stdout, stderr, _ = self.run_cmd('s3 ls --console-link')
         self.assertEqual(stdout, S3_BUCKETS_US_EAST_1 + '\n')
         self.assertEqual(stderr, '')
-        self.assertEqual(self.operations_called, [])
+        self.assertEqual(self.operation_names(), ['GetCallerIdentity'])
         self.assert_signed_in(S3_BUCKETS_US_EAST_1)
         self.assertIn('session_token', self.http_get.call_args[0][1])
+
+    def test_root_session_credentials_open_plain_url_with_warning(self):
+        self.environ['AWS_SESSION_TOKEN'] = 'session_token'
+        self.parsed_response = {
+            'Account': ACCOUNT,
+            'Arn': f'arn:aws:iam::{ACCOUNT}:root',
+        }
+        stdout, stderr, rc = self.run_cmd('s3 ls --console-link')
+        self.assertEqual(rc, 0)
+        self.assertEqual(stdout, S3_BUCKETS_US_EAST_1 + '\n')
+        self.assertEqual(
+            stderr,
+            'Console sign-in failed (root user session credentials cannot '
+            'sign in to the console through federation; only role and '
+            'federated user sessions can). Opening the console without '
+            'signing in.\n',
+        )
+        self.assertEqual(self.operation_names(), ['GetCallerIdentity'])
+        self.assertFalse(self.http_get.called)
+        self.open_browser.assert_called_once_with(S3_BUCKETS_US_EAST_1)
 
     def test_no_credentials_opens_plain_url_with_warning(self):
         for name in (
@@ -158,7 +182,7 @@ class TestInConsole(BaseAWSCommandParamsTest):
         self.use_config('')
         # Keep the instance metadata provider from reaching the network.
         self.environ['AWS_EC2_METADATA_DISABLED'] = 'true'
-        stdout, stderr, rc = self.run_cmd('s3 ls --in-console')
+        stdout, stderr, rc = self.run_cmd('s3 ls --console-link')
         self.assertEqual(rc, 0)
         self.assertEqual(stderr, NO_CREDENTIALS_WARNING)
         self.assertEqual(stdout, S3_BUCKETS_US_EAST_1 + '\n')
@@ -167,27 +191,27 @@ class TestInConsole(BaseAWSCommandParamsTest):
         self.open_browser.assert_called_once_with(S3_BUCKETS_US_EAST_1)
 
     def test_aws_help(self):
-        self.assert_docs('help --in-console', docs.DOCS_HOME)
+        self.assert_docs('help --console-link', docs.DOCS_HOME)
 
     def test_service_help(self):
         self.assert_docs(
-            's3 help --in-console', 'https://docs.aws.amazon.com/s3/'
+            's3 help --console-link', 'https://docs.aws.amazon.com/s3/'
         )
 
     def test_subcommand_help(self):
         self.assert_docs(
-            's3 ls help --in-console',
+            's3 ls help --console-link',
             'https://docs.aws.amazon.com/cli/latest/reference/s3/ls.html',
         )
 
     def test_help_topics(self):
         self.assert_docs(
-            'help topics --in-console',
+            'help topics --console-link',
             'https://docs.aws.amazon.com/cli/latest/topic/index.html',
         )
 
     def test_flag_first_with_help(self):
-        self.assert_docs('--in-console help', docs.DOCS_HOME)
+        self.assert_docs('--console-link help', docs.DOCS_HOME)
 
     def test_function_named_help_opens_the_function_page(self):
         url = (
@@ -195,7 +219,7 @@ class TestInConsole(BaseAWSCommandParamsTest):
             '?region=us-west-2#/functions/help'
         )
         stdout, stderr, rc = self.run_cmd(
-            'lambda get-function --function-name help --in-console '
+            'lambda get-function --function-name help --console-link '
             '--region us-west-2'
         )
         self.assertEqual(rc, 0)
@@ -205,7 +229,7 @@ class TestInConsole(BaseAWSCommandParamsTest):
 
     def test_print_only_env_var_prints_signin_url(self):
         self.environ['AWS_IN_CONSOLE_OPEN'] = 'false'
-        stdout, stderr, _ = self.run_cmd('s3 ls --in-console')
+        stdout, stderr, _ = self.run_cmd('s3 ls --console-link')
         self.assertFalse(self.open_browser.called)
         self.assertEqual(stderr, '')
         self.assertTrue(stdout.startswith(LOGIN_PREFIX), stdout)
@@ -215,7 +239,7 @@ class TestInConsole(BaseAWSCommandParamsTest):
 
     def test_print_only_config_setting(self):
         self.use_config('[default]\nin_console_open = off\n')
-        stdout, _, _ = self.run_cmd('s3 ls --in-console')
+        stdout, _, _ = self.run_cmd('s3 ls --console-link')
         self.assertFalse(self.open_browser.called)
         self.assertTrue(stdout.startswith(LOGIN_PREFIX), stdout)
 
@@ -227,14 +251,14 @@ class TestInConsole(BaseAWSCommandParamsTest):
             'aws_access_key_id = AKIDPROFILEKEY\n'
             'aws_secret_access_key = profile-secret\n',
         )
-        stdout, _, _ = self.run_cmd('--profile prod s3 ls --in-console')
+        stdout, _, _ = self.run_cmd('--profile prod s3 ls --console-link')
         url = 'https://console.aws.amazon.com/s3/buckets?region=eu-west-2'
         self.assertEqual(stdout, url + '\n')
         self.assertEqual(self.operation_names(), ['GetFederationToken'])
         self.assert_signed_in(url)
 
     def test_unknown_subcommand_uses_the_service_page(self):
-        stdout, _, _ = self.run_cmd('s3 not-a-subcommand --in-console')
+        stdout, _, _ = self.run_cmd('s3 not-a-subcommand --console-link')
         self.assertEqual(
             stdout,
             'https://console.aws.amazon.com/s3/buckets?region=us-east-1\n',
@@ -251,7 +275,7 @@ class TestInConsole(BaseAWSCommandParamsTest):
         with mock.patch(
             f'{PKG}.db.load_db', return_value=dict(database, root=root)
         ):
-            stdout, _, _ = self.run_cmd('s3 ls --in-console')
+            stdout, _, _ = self.run_cmd('s3 ls --console-link')
         self.assertEqual(
             stdout,
             'https://console.aws.amazon.com/go/view?service=s3'

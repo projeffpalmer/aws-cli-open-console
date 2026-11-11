@@ -44,6 +44,7 @@ class AccountResolver:
         self._region = region
         self._account_id = None
         self._resolved = False
+        self._identity = None
 
     def set_from_arn(self, arn):
         """Remember the account id in ``arn`` when it has a valid one."""
@@ -52,19 +53,33 @@ class AccountResolver:
             self._account_id = account_id
             self._resolved = True
 
+    def _caller_identity(self):
+        """The GetCallerIdentity response, ``{}`` on failure; cached."""
+        if self._identity is None:
+            self._identity = {}
+            try:
+                client = self._session.create_client(
+                    'sts', region_name=self._region
+                )
+                identity = client.get_caller_identity()
+            except (BotoCoreError, ClientError):
+                LOG.debug('GetCallerIdentity failed', exc_info=True)
+            else:
+                if isinstance(identity, dict):
+                    self._identity = identity
+        return self._identity
+
+    def caller_arn(self):
+        """Return the ARN of the credentials' identity or None."""
+        arn = self._caller_identity().get('Arn')
+        return arn if isinstance(arn, str) else None
+
     def get(self):
         """Return the account id or None; STS is called at most once."""
         if self._resolved:
             return self._account_id
         self._resolved = True
-        try:
-            client = self._session.create_client(
-                'sts', region_name=self._region
-            )
-            account_id = client.get_caller_identity().get('Account')
-        except (BotoCoreError, ClientError):
-            LOG.debug('GetCallerIdentity failed', exc_info=True)
-            return None
+        account_id = self._caller_identity().get('Account')
         if isinstance(account_id, str) and _ACCOUNT_ID.fullmatch(account_id):
             self._account_id = account_id
         else:

@@ -77,20 +77,7 @@ def deliver(console_url, open_url, session):
         return 0
     uni_print(console_url + '\n')
     sys.stdout.flush()
-    reason = None
-    try:
-        # ``webbrowser`` returns False (it does not raise) when it finds no
-        # runnable browser, so the result is checked here.
-        with original_ld_library_path():
-            opened = webbrowser.open_new_tab(open_url)
-    except (webbrowser.Error, OSError) as exc:
-        # The URL can be a sign-in bearer secret: keep it out of the text.
-        reason = (str(exc) or type(exc).__name__).replace(open_url, '<url>')
-        LOG.debug('Opening the browser failed: %s', type(exc).__name__)
-    else:
-        if opened is False:
-            reason = NO_BROWSER_REASON
-            LOG.debug('Opening the browser failed: no runnable browser')
+    reason = _open_browser(open_url)
     if reason is not None:
         uni_print(
             f'Could not open a browser ({reason}); the URL is printed '
@@ -98,3 +85,39 @@ def deliver(console_url, open_url, session):
             sys.stderr,
         )
     return 0
+
+
+def open_beside_output(console_url, open_url, session):
+    """Open ``open_url`` for ``--open-console``; stdout stays the command's.
+
+    In print-only mode the URL to open goes to stderr instead. A browser
+    that cannot be opened gives a warning naming ``console_url`` (never the
+    sign-in URL, a bearer secret).
+    """
+    if print_only(session):
+        uni_print(open_url + '\n', sys.stderr)
+        return
+    reason = _open_browser(open_url)
+    if reason is not None:
+        uni_print(
+            f'Could not open a browser ({reason}); the console page is '
+            f'{console_url}\n',
+            sys.stderr,
+        )
+
+
+def _open_browser(open_url):
+    """Open ``open_url`` in a new tab; return None or the failure reason."""
+    try:
+        # ``webbrowser`` returns False (it does not raise) when it finds no
+        # runnable browser, so the result is checked here.
+        with original_ld_library_path():
+            opened = webbrowser.open_new_tab(open_url)
+    except (webbrowser.Error, OSError) as exc:
+        # The URL can be a sign-in bearer secret: keep it out of the text.
+        LOG.debug('Opening the browser failed: %s', type(exc).__name__)
+        return (str(exc) or type(exc).__name__).replace(open_url, '<url>')
+    if opened is False:
+        LOG.debug('Opening the browser failed: no runnable browser')
+        return NO_BROWSER_REASON
+    return None

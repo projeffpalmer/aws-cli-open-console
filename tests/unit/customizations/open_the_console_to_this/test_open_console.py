@@ -142,7 +142,7 @@ class BaseOpenConsoleTest(unittest.TestCase):
         self.addCleanup(open_patcher.stop)
 
     def run_open_console(self, command, *remaining):
-        parsed_args = argparse.Namespace(command=command, in_console=True)
+        parsed_args = argparse.Namespace(command=command, console_link=True)
         return open_console(self.session, parsed_args, list(remaining))
 
 
@@ -347,3 +347,41 @@ class TestOpenConsole(BaseOpenConsoleTest):
             self.run_open_console('s3', 'ls')
         self.assertFalse(self.session.get_credentials.called)
         self.assertIn('sign-in applied=False', '\n'.join(logs.output))
+
+class TestRunAndOpen(unittest.TestCase):
+    def run_and_open(self, command, remaining, rc=0):
+        from awscli.customizations.open_the_console_to_this import (
+            run_and_open,
+        )
+
+        parsed_args = argparse.Namespace(command=command, open_console=True)
+        callable_ = mock.Mock(return_value=rc)
+        with mock.patch(f'{PKG}.ConsoleOpener.open') as opener_open:
+            result = run_and_open(
+                mock.Mock(), parsed_args, remaining, callable_
+            )
+        callable_.assert_called_once_with(remaining, parsed_args)
+        return result, parsed_args, opener_open
+
+    def test_help_only_shows_help(self):
+        for command, remaining in (('help', []), ('s3', ['ls', 'help'])):
+            with self.subTest(command=command, remaining=remaining):
+                rc, parsed_args, opener_open = self.run_and_open(
+                    command, remaining
+                )
+                self.assertEqual(rc, 0)
+                self.assertFalse(hasattr(parsed_args, 'console_opener'))
+                self.assertFalse(opener_open.called)
+
+    def test_command_without_api_response_opens_afterwards(self):
+        rc, parsed_args, opener_open = self.run_and_open(
+            's3', ['mb', 's3://photos']
+        )
+        self.assertEqual(rc, 0)
+        self.assertIsNotNone(parsed_args.console_opener)
+        opener_open.assert_called_once_with(None)
+
+    def test_failed_command_opens_nothing(self):
+        rc, _, opener_open = self.run_and_open('s3', ['mb', 's3://x'], rc=1)
+        self.assertEqual(rc, 1)
+        self.assertFalse(opener_open.called)

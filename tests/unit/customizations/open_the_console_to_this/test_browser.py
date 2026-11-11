@@ -184,3 +184,31 @@ class TestDeliver(unittest.TestCase):
         self.open_browser.side_effect = OSError()
         browser.deliver(CONSOLE_URL, CONSOLE_URL, make_session())
         self.assertIn('(OSError)', self.stderr.getvalue())
+
+
+class TestOpenBesideOutput(unittest.TestCase):
+    setUp = TestDeliver.setUp
+
+    def test_opens_signin_url_and_leaves_stdout_alone(self):
+        browser.open_beside_output(CONSOLE_URL, SIGNIN_URL, make_session())
+        self.assertEqual(self.stdout.getvalue(), '')
+        self.assertEqual(self.stderr.getvalue(), '')
+        self.open_browser.assert_called_once_with(SIGNIN_URL)
+
+    def test_print_only_prints_the_url_to_open_on_stderr(self):
+        session = make_session({'in_console_open': 'false'})
+        browser.open_beside_output(CONSOLE_URL, SIGNIN_URL, session)
+        self.assertEqual(self.stdout.getvalue(), '')
+        self.assertEqual(self.stderr.getvalue(), SIGNIN_URL + '\n')
+        self.assertFalse(self.open_browser.called)
+
+    def test_no_runnable_browser_names_the_console_page(self):
+        self.open_browser.return_value = False
+        browser.open_beside_output(CONSOLE_URL, SIGNIN_URL, make_session())
+        self.assertEqual(self.stdout.getvalue(), '')
+        self.assertEqual(
+            self.stderr.getvalue(),
+            'Could not open a browser (no runnable browser found); the '
+            f'console page is {CONSOLE_URL}\n',
+        )
+        self.assertNotIn('secret-token', self.stderr.getvalue())

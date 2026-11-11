@@ -17,4 +17,5 @@
 [--cli-auto-prompt]
 [--no-cli-auto-prompt]
 [--cli-error-format <value>]
-[--in-console]
+[--console-link]
+[--open-console]

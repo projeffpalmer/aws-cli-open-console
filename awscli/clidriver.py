@@ -603,12 +603,23 @@ class CLIDriver:
             self._emit_session_event(parsed_args)
             HISTORY_RECORDER.record('CLI_VERSION', self._cli_version(), 'CLI')
             HISTORY_RECORDER.record('CLI_ARGUMENTS', args, 'CLI')
-            if getattr(parsed_args, 'in_console', False):
+            if getattr(parsed_args, 'console_link', False):
                 from awscli.customizations.open_the_console_to_this import (
                     open_console,
                 )
 
                 return open_console(self.session, parsed_args, remaining)
+            if getattr(parsed_args, 'open_console', False):
+                from awscli.customizations.open_the_console_to_this import (
+                    run_and_open,
+                )
+
+                return run_and_open(
+                    self.session,
+                    parsed_args,
+                    remaining,
+                    command_table[parsed_args.command],
+                )
             return command_table[parsed_args.command](remaining, parsed_args)
         except BaseException as e:
             # when --version action executed default argparser prints out
@@ -1108,6 +1119,9 @@ class CLIOperationCaller:
         response = self._make_client_call(
             client, operation_name, parameters, parsed_globals
         )
+        console_opener = getattr(parsed_globals, 'console_opener', None)
+        if console_opener is not None:
+            response = console_opener.before_display(response)
         self._display_response(operation_name, response, parsed_globals)
         return 0
 

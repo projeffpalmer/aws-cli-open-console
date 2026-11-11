@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Generate the --in-console command database (scripts/console_db).
+"""Generate the --console-link command database (scripts/console_db).
 
 Pipeline: walk -> services -> intent heuristics -> URLs from snapshots
 -> docs -> overrides -> export.  Offline and deterministic: the same

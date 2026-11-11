@@ -38,7 +38,7 @@
             "General"
         ],
         "description": [
-            "Using the --in-console option to open the AWS Management Console page for a command"
+            "Using the --console-link and --open-console options to open the AWS Management Console page for a command"
         ],
         "related command": [
             "sts get-federation-token",

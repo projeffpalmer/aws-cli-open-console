@@ -13,9 +13,10 @@
 """Sign the browser in to the console with the CLI's own credentials.
 
 Credentials come from ``session.get_credentials()``, so they follow the
-CLI's precedence exactly.  Temporary credentials go straight to the
-federation endpoint; long-term IAM user keys are first exchanged with STS
-``GetFederationToken``.  Every failure degrades to the plain console URL
+CLI's precedence exactly.  Temporary credentials of a role or federated
+user session go straight to the federation endpoint (other temporary
+credentials are refused); long-term IAM user keys are first exchanged with
+STS ``GetFederationToken``.  Every failure degrades to the plain console URL
 and a one-line warning.  Nothing secret is logged or put in a message: the
 sign-in URL itself is a bearer secret and is only returned to the caller.
 """
@@ -41,6 +42,17 @@ FEDERATION_POLICY = (
     '[{"Effect":"Allow","Action":"*","Resource":"*"}]}'
 )
 FEDERATION_DURATION_SECONDS = 3600
+# Providers whose temporary credentials are always role sessions.
+ROLE_SESSION_PROVIDERS = frozenset(
+    (
+        'assume-role',
+        'assume-role-with-web-identity',
+        'container-role',
+        'iam-role',
+        'sso',
+    )
+)
+_IDENTITY_KINDS = {'root': 'root user', 'user': 'IAM user'}
 HTTP_TIMEOUT_SECONDS = 25
 NO_SIGNIN = 'Opening the console without signing in.'
 NO_CREDENTIALS_WARNING = f'Unable to locate credentials. {NO_SIGNIN}'
@@ -242,6 +254,34 @@ def _federation_token(session, creds, region, account_resolver):
     return federated
 
 
+def _check_role_session(creds, account_resolver):
+    """Refuse temporary credentials the console will not federate.
+
+    The federation endpoint issues a sign-in token for any temporary
+    credentials, but the console only logs in with AssumeRole and
+    GetFederationToken sessions.  Others, such as ``aws login`` or
+    GetSessionToken credentials of an IAM user or the root user, fail on
+    the console's error page, and GetFederationToken cannot help because
+    it needs long-term keys.  When the identity cannot be looked up the
+    sign-in is attempted anyway.
+    """
+    if creds.method in ROLE_SESSION_PROVIDERS or account_resolver is None:
+        return
+    arn = account_resolver.caller_arn()
+    if arn is None:
+        return
+    fields = arn.split(':', 5)
+    resource = fields[5] if len(fields) == 6 else ''
+    kind = resource.split('/', 1)[0]
+    if fields[2:3] == ['sts'] and kind in ('assumed-role', 'federated-user'):
+        return
+    raise SigninError(
+        f'{_IDENTITY_KINDS.get(kind, kind or "unknown")} session credentials '
+        'cannot sign in to the console through federation; only role and '
+        'federated user sessions can'
+    )
+
+
 def _signin_token(session, creds, host):
     session_json = json.dumps(
         {
@@ -284,7 +324,9 @@ def federation_login_url(
     # Checked before any request, so a blank ca_bundle never sends the
     # credentials without certificate verification.
     _verify(session)
-    if not creds.token:
+    if creds.token:
+        _check_role_session(creds, account_resolver)
+    else:
         LOG.debug('Long-term keys: calling STS GetFederationToken first')
         creds = _federation_token(session, creds, region, account_resolver)
     token = _signin_token(session, creds, host)

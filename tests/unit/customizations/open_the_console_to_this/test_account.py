@@ -100,6 +100,22 @@ class TestAccountResolver(unittest.TestCase):
                 self.assertEqual(resolver.get(), ACCOUNT)
                 client.get_caller_identity.assert_called_once_with()
 
+    def test_caller_arn_and_account_share_one_call(self):
+        arn = f'arn:aws:iam::{ACCOUNT}:root'
+        session, client = make_session({'Account': ACCOUNT, 'Arn': arn})
+        resolver = AccountResolver(session, 'us-west-2')
+        self.assertEqual(resolver.caller_arn(), arn)
+        self.assertEqual(resolver.get(), ACCOUNT)
+        self.assertEqual(resolver.caller_arn(), arn)
+        client.get_caller_identity.assert_called_once_with()
+
+    def test_caller_arn_failure_is_cached_as_none(self):
+        session, client = make_session(error=NoCredentialsError())
+        resolver = AccountResolver(session, 'us-west-2')
+        self.assertIsNone(resolver.caller_arn())
+        self.assertIsNone(resolver.get())
+        client.get_caller_identity.assert_called_once_with()
+
     def test_set_from_arn_after_failed_lookup(self):
         session, client = make_session(error=NoCredentialsError())
         resolver = AccountResolver(session, 'us-west-2')

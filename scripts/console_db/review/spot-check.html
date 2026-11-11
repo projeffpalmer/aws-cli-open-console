@@ -34,7 +34,7 @@ a { color: #0550ae; }
 </head>
 <body>
 <h1>Curated console URL spot check</h1>
-<p class="lead">One row per curated node of the <code>--in-console</code> database (734 nodes in 85 tier-1 commands; awscli 2.39.3, snapshot 2026-11-04). The links open the real console and need a signed-in console session in this browser. This page exists because single-page consoles answer the same way for good and bad routes when requested unauthenticated, so <code>scripts/verify-console-db</code> can check only the host and path; the fragment and the page itself need a human. The sample URL is the one the first resolver case for the node gives (its command line is shown under the link); without a case it is <code>url.best</code> rendered for us-west-2. Regenerate with <code>.venv/bin/python scripts/console_db/spotcheck.py</code>.</p>
+<p class="lead">One row per curated node of the <code>--console-link</code> database (734 nodes in 85 tier-1 commands; awscli 2.39.3, snapshot 2026-11-04). The links open the real console and need a signed-in console session in this browser. This page exists because single-page consoles answer the same way for good and bad routes when requested unauthenticated, so <code>scripts/verify-console-db</code> can check only the host and path; the fragment and the page itself need a human. The sample URL is the one the first resolver case for the node gives (its command line is shown under the link); without a case it is <code>url.best</code> rendered for us-west-2. Regenerate with <code>.venv/bin/python scripts/console_db/spotcheck.py</code>.</p>
 <nav>
 <a href="#svc-acm">acm</a>
 <a href="#svc-agent-toolkit">agent-toolkit</a>

@@ -358,11 +358,11 @@ class TestCliDriver:
         rc = self.driver.main('s3 list-objects --bucket foo'.split())
         assert rc == 130
 
-    def test_in_console_opens_console_instead_of_running_command(self):
-        in_console = {'action': 'store_true', 'dest': 'in_console'}
+    def test_console_link_opens_console_instead_of_running_command(self):
+        console_link = {'action': 'store_true', 'dest': 'console_link'}
         self.session.create_client = mock.Mock()
         with mock.patch.dict(
-            GET_DATA['cli']['options'], {'in-console': in_console}
+            GET_DATA['cli']['options'], {'console-link': console_link}
         ):
             with mock.patch(
                 'awscli.customizations.open_the_console_to_this.open_console',
@@ -370,16 +370,37 @@ class TestCliDriver:
             ) as open_console:
                 driver = CLIDriver(session=self.session)
                 rc = driver.main(
-                    's3 list-objects --in-console --bucket foo'.split()
+                    's3 list-objects --console-link --bucket foo'.split()
                 )
         assert rc == 0
         open_console.assert_called_once()
         session, parsed_args, remaining = open_console.call_args[0]
         assert session is self.session
         assert parsed_args.command == 's3'
-        assert parsed_args.in_console is True
+        assert parsed_args.console_link is True
         assert remaining == ['list-objects', '--bucket', 'foo']
         assert not self.session.create_client.called
+
+    def test_open_console_runs_the_command_through_run_and_open(self):
+        open_console = {'action': 'store_true', 'dest': 'open_console'}
+        with mock.patch.dict(
+            GET_DATA['cli']['options'], {'open-console': open_console}
+        ):
+            with mock.patch(
+                'awscli.customizations.open_the_console_to_this.run_and_open',
+                return_value=0,
+            ) as run_and_open:
+                driver = CLIDriver(session=self.session)
+                rc = driver.main(
+                    's3 list-objects --open-console --bucket foo'.split()
+                )
+        assert rc == 0
+        run_and_open.assert_called_once()
+        session, parsed_args, remaining, command = run_and_open.call_args[0]
+        assert session is self.session
+        assert parsed_args.open_console is True
+        assert remaining == ['list-objects', '--bucket', 'foo']
+        assert callable(command)
 
     def test_error_unicode(self):
         stderr_b = io.BytesIO()

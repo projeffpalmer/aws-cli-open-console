@@ -108,7 +108,7 @@ def render_page(root, meta, cases_by_path):
         '<body>',
         '<h1>Curated console URL spot check</h1>',
         '<p class="lead">One row per curated node of the '
-        '<code>--in-console</code> database '
+        '<code>--console-link</code> database '
         f'({total} nodes in {len(groups)} tier-1 commands; awscli '
         f'{_e(meta.get("awscli"))}, snapshot {_e(meta.get("snapshot"))}). '
         'The links open the real console and need a signed-in console '

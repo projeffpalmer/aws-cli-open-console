@@ -98,10 +98,15 @@
             ],
             "help": "<p>The formatting style for error output. By default, errors are displayed in enhanced format.</p>"
         },
-        "in-console": {
+        "console-link": {
             "action": "store_true",
-            "dest": "in_console",
+            "dest": "console_link",
             "help": "<p>Do not run the command. Open the AWS Management Console page that best matches it instead, signed in with the credentials the command would have used, and print the URL. With <code>help</code>, open the documentation instead.</p>"
+        },
+        "open-console": {
+            "action": "store_true",
+            "dest": "open_console",
+            "help": "<p>Run the command as usual, and before its output is displayed open the AWS Management Console page of the resource it acted on (for example the table that <code>dynamodb create-table</code> created, or the instances that <code>ec2 run-instances</code> launched), signed in with the credentials the command used. The output is unchanged.</p>"
         }
     }
 }
