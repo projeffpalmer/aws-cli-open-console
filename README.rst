@@ -9,32 +9,6 @@ aws-cli
 
 This package provides a unified command line interface to Amazon Web Services.
 
------------------------------------
-This fork: open-the-console-to-this
------------------------------------
-
-This fork adds two global options. ``--console-link`` opens the AWS
-Management Console page that matches a command instead of running it::
-
-    $ aws s3 ls --console-link
-
-The command's API operation is never called; the AWS CLI prints the console
-URL and opens it in your browser, signed in with the credentials the command
-would have used. Pages come from a database with an entry for every command,
-curated for common services and falling back to the service home page. Add
-``help`` (for example ``aws s3 ls help --console-link``) to open the
-documentation instead.
-
-``--open-console`` runs the command as usual and, after it completes,
-opens the console page of the resource it acted on, such as the
-table that ``aws dynamodb create-table`` created or the instance that
-``aws ec2 run-instances`` launched::
-
-    $ aws dynamodb create-table --table-name MusicCollection ... --open-console
-
-Run ``aws help in-console`` for the full guide, including print-only mode
-for hosts without a browser.
-
 The aws-cli package works on Python versions:
 
 * 3.9.x
@@ -354,6 +328,13 @@ The default output for commands is currently JSON.  You can use the
 For more information on the expression language used for the ``--query``
 argument, you can read the
 `JMESPath Tutorial <http://jmespath.org/tutorial.html>`__.
+
+You can use the ``--console-link`` option to open the corresponding
+AWS Management Console page. For example, ``aws s3 mb --console-link``
+opens the AWS Management Console page for S3 bucket creation.
+You can also use the ``--open-console`` option to open the AWS Management Console page
+after the command completes. For example, ``aws s3 mb s3://amzn-s3-demo-bucket --open-console``
+creates the S3 bucket, then opens the bucket info page for the newly created bucket.
 
 ^^^^^^^^
 Examples

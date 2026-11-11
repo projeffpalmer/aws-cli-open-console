@@ -10,13 +10,9 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-"""Print the console URL and open the browser (contract section 4).
-
-stdout gets exactly one line, the console destination URL, while the
-browser gets the URL to open (the sign-in URL when sign-in was applied).
+"""Print the console URL with hashed sign-in token and open the web browser.
 The sign-in URL is a bearer secret: it is unhashed only to launch the
-browser and is never printed.  So, unlike in the contract, print-only mode
-prints the console URL as well, and nothing is signed in.
+web browser and is never printed.
 """
 
 import logging
@@ -93,7 +89,7 @@ def open_beside_output(console_url, open_url, session):
 
     In print-only mode ``console_url`` goes to stderr instead. A browser
     that cannot be opened gives a warning naming ``console_url``. Neither
-    shows the sign-in token, except hashed.
+    shows the unhashed sign-in token.
     """
     if print_only(session):
         uni_print(console_url + '\n', sys.stderr)
@@ -110,9 +106,7 @@ def open_beside_output(console_url, open_url, session):
 def _open_browser(open_url):
     """Open ``open_url`` in a new tab; return None or the failure reason.
 
-    A sign-in URL is unhashed here and nowhere else. Every exception is
-    turned into the reason, with the sign-in token hashed in it, so that
-    none leaves this function quoting the token.
+    The sign-in URL is unhashed here and nowhere else. 
     """
     is_signin_url = isinstance(open_url, SigninUrl)
     try:

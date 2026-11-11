@@ -37,9 +37,6 @@ _ENCODERS = {
 
 def partition_for_region(session, region):
     """Return ``aws``, ``aws-us-gov`` or ``aws-cn`` for ``region``.
-
-    Unknown regions, any lookup error and partitions without a console
-    mapping give ``aws``.
     """
     try:
         with warnings.catch_warnings():
@@ -65,10 +62,6 @@ def signin_host(partition):
 
 def render(template, params):
     """Fill ``{name}`` / ``{name:enc}`` placeholders from ``params``.
-
-    ``enc`` is ``path`` (the default), ``query`` or ``raw``. A
-    placeholder whose value is missing or None raises ``KeyError``
-    naming it; an unknown encoding raises ``ValueError``.
     """
 
     def replace(match):

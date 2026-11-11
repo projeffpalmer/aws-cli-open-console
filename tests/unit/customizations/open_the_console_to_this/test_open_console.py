@@ -16,7 +16,6 @@ import logging
 
 from awscli.customizations.open_the_console_to_this import (
     ConsoleOpener,
-    db,
     docs,
     open_console,
     signin,
@@ -33,73 +32,6 @@ SIGNIN_URL = SIGNIN.unhashed()
 TOKEN_HASH = signin.hashed('secret-token')
 S3_DOCS = 'https://docs.aws.amazon.com/s3/'
 LS_DOCS = 'https://docs.aws.amazon.com/cli/latest/reference/s3/ls.html'
-LAMBDA_DOCS = 'https://docs.aws.amazon.com/lambda/'
-GET_FUNCTION_DOCS = (
-    'https://docs.aws.amazon.com/cli/latest/reference/lambda/'
-    'get-function.html'
-)
-
-
-def node(path, best, docs_best, children=None, **extra):
-    data = {
-        'path': path,
-        'name': path.rsplit('.', 1)[-1],
-        'url': {'best': best, 'source': 'curated'},
-        'docs': {'best': docs_best},
-        'children': children or {},
-    }
-    data.update(extra)
-    return data
-
-
-ROOT = node(
-    'aws',
-    'https://{host}/console/home?region={region}',
-    docs.DOCS_HOME,
-    {
-        's3': node(
-            'aws.s3',
-            'https://{host}/s3/home?region={region}',
-            S3_DOCS,
-            {
-                'ls': node(
-                    'aws.s3.ls',
-                    'https://{host}/s3/buckets?region={region}',
-                    LS_DOCS,
-                    intent={'verb': 'list'},
-                    positional=['paths'],
-                    flags=['recursive'],
-                    scalars=['page-size'],
-                ),
-            },
-        ),
-        'lambda': node(
-            'aws.lambda',
-            'https://{host}/lambda/home?region={region}',
-            LAMBDA_DOCS,
-            {
-                'get-function': node(
-                    'aws.lambda.get-function',
-                    'https://{host}/lambda/home?region={region}#/functions',
-                    GET_FUNCTION_DOCS,
-                    intent={'verb': 'view', 'id_args': ['--function-name']},
-                    url={
-                        'best': 'https://{host}/lambda/home#/functions',
-                        'with_id': (
-                            'https://{host}/lambda/home#/functions/{id:raw}'
-                        ),
-                        'source': 'curated',
-                    },
-                ),
-            },
-        ),
-        'iam': node(
-            'aws.iam',
-            'https://{host}/iam/home?account={account}',
-            'https://docs.aws.amazon.com/iam/',
-        ),
-    },
-)
 
 
 class FakeSession:
@@ -128,14 +60,12 @@ class BaseOpenConsoleTest(unittest.TestCase):
         self.stdout = io.StringIO()
         self.stderr = io.StringIO()
         self.session = FakeSession()
-        self.load_db = mock.Mock(return_value={'schema': 1, 'root': ROOT})
         self.wrap = mock.Mock(side_effect=lambda s, d, *a: (SIGNIN, None))
         patchers = [
             mock.patch('sys.stdout', self.stdout),
             mock.patch('sys.stderr', self.stderr),
             mock.patch.dict('os.environ', {'DISPLAY': ':0'}, clear=True),
             mock.patch('sys.platform', 'linux'),
-            mock.patch(f'{PKG}.db.load_db', self.load_db),
             mock.patch(f'{PKG}.signin.wrap', self.wrap),
         ]
         for patcher in patchers:
@@ -192,7 +122,8 @@ class TestHelp(BaseOpenConsoleTest):
 
     def test_option_value_named_help_is_not_help(self):
         self.assert_console(
-            'https://console.aws.amazon.com/lambda/home#/functions/help',
+            'https://us-west-2.console.aws.amazon.com/lambda/home'
+            '?region=us-west-2#/functions/help',
             'lambda',
             'get-function',
             '--function-name',
@@ -223,31 +154,6 @@ class TestHelp(BaseOpenConsoleTest):
         self.assertEqual(rc, 0)
         self.assertEqual(self.stdout.getvalue(), S3_DOCS + '\n')
         self.assertFalse(self.open_browser.called)
-
-
-class TestDatabaseErrors(BaseOpenConsoleTest):
-    def assert_db_error(self, error, text):
-        self.load_db.side_effect = error
-        rc = self.run_open_console('s3', 'ls')
-        self.assertEqual(rc, 255)
-        self.assertEqual(self.stdout.getvalue(), '')
-        self.assertEqual(
-            self.stderr.getvalue(),
-            f'Unable to load the console URL database: {db.DB_PATH}: '
-            f'{text}\n',
-        )
-        self.assertFalse(self.open_browser.called)
-        self.assertFalse(self.wrap.called)
-
-    def test_missing_file(self):
-        self.assert_db_error(FileNotFoundError('missing'), 'missing')
-
-    def test_invalid_json(self):
-        self.assert_db_error(ValueError('bad json'), 'bad json')
-
-    def test_help_also_needs_the_database(self):
-        self.load_db.side_effect = OSError('denied')
-        self.assertEqual(self.run_open_console('help'), 255)
 
 
 class TestOpenConsole(BaseOpenConsoleTest):
@@ -286,7 +192,7 @@ class TestOpenConsole(BaseOpenConsoleTest):
             self.run_open_console('s3')
         self.assertEqual(
             self.stdout.getvalue(),
-            'https://console.aws.amazon.com/s3/home?region=us-east-1\n',
+            'https://console.aws.amazon.com/s3/buckets?region=us-east-1\n',
         )
         self.assertEqual(self.wrap.call_args[0][3], 'us-east-1')
         self.assertIn('no region configured', '\n'.join(logs.output))
@@ -296,7 +202,7 @@ class TestOpenConsole(BaseOpenConsoleTest):
         self.run_open_console('s3')
         self.assertEqual(
             self.stdout.getvalue(),
-            'https://console.amazonaws.cn/s3/home?region=cn-north-1\n',
+            'https://console.amazonaws.cn/s3/buckets?region=cn-north-1\n',
         )
         self.assertEqual(self.wrap.call_args[0][2], 'aws-cn')
 
@@ -329,8 +235,9 @@ class TestOpenConsole(BaseOpenConsoleTest):
         self.assertIs(self.wrap.call_args[0][4], account_cls.return_value)
         self.assertEqual(
             self.stdout.getvalue(),
-            f'https://console.aws.amazon.com/iam/home?account={ACCOUNT}\n',
+            'https://console.aws.amazon.com/iam/home\n',
         )
+        self.assertFalse(account_cls.return_value.get.called)
 
     def test_account_is_not_looked_up_when_not_needed(self):
         with mock.patch(f'{PKG}.account.AccountResolver') as account_cls:
@@ -343,7 +250,7 @@ class TestOpenConsole(BaseOpenConsoleTest):
             self.run_open_console('s3', 'ls')
         output = '\n'.join(logs.output)
         self.assertIn('node=aws.s3.ls', output)
-        self.assertIn('source=curated', output)
+        self.assertIn('source=console', output)
         self.assertIn('verb=list', output)
         self.assertIn('sign-in applied=True', output)
         self.assertIn('credential method=env', output)
@@ -402,8 +309,10 @@ class TestConsoleOpener(BaseOpenConsoleTest):
             self.assertNotIn('secret-token', text)
 
     def test_error_before_sign_in_is_reported_unchanged(self):
-        self.load_db.side_effect = ValueError('bad json')
-        self.open()
+        with mock.patch(
+            f'{PKG}.resolver.resolve', side_effect=ValueError('bad json')
+        ):
+            self.open()
         self.assertEqual(
             self.stderr.getvalue(), 'Could not open the console (bad json).\n'
         )
@@ -411,8 +320,8 @@ class TestConsoleOpener(BaseOpenConsoleTest):
         self.assertFalse(self.open_browser.called)
 
     def test_error_without_message_uses_its_type(self):
-        self.load_db.side_effect = ValueError()
-        self.open()
+        with mock.patch(f'{PKG}.resolver.resolve', side_effect=ValueError()):
+            self.open()
         self.assertEqual(
             self.stderr.getvalue(),
             'Could not open the console (ValueError).\n',

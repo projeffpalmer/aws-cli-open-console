@@ -14,25 +14,66 @@
 
 from urllib.parse import quote
 
+from awscli.customizations.open_the_console_to_this.resolver import (
+    operation_known,
+    parse_command,
+)
+
 DOCS_HOME = 'https://docs.aws.amazon.com/'
 TOPIC_URL = 'https://docs.aws.amazon.com/cli/latest/topic/{}.html'
+REFERENCE = 'https://docs.aws.amazon.com/cli/latest/reference/'
 TOPICS_INDEX = 'index'
+_GUIDE_SERVICES = frozenset(['s3'])
+_REFERENCE_ONLY = frozenset(['configure', 'history'])
 
 
-def docs_url(root, node, tokens_after_node):
-    """Return the documentation URL for ``node``.
+def docs_url(command, remaining, session=None):
+    """Return the documentation URL for a help command."""
+    kind, service, parts = _target(command, remaining, session)
+    if kind == 'home':
+        return DOCS_HOME
+    if kind == 'topic':
+        return TOPIC_URL.format(quote(parts[0], safe=''))
+    if kind == 'service':
+        return f'https://docs.aws.amazon.com/{quote(service, safe="")}/'
+    path = '/'.join(quote(part, safe='') for part in parts)
+    return f'{REFERENCE}{quote(service, safe="")}/{path}.html'
 
-    At the root, ``help`` (or nothing) gives ``DOCS_HOME`` and
-    ``help <topic>`` gives the CLI topic page (``topics`` gives the
-    topic index). Every other node gives ``node['docs']['best']``.
-    """
-    tokens = list(tokens_after_node or ())
-    if node is root:
-        if len(tokens) == 2 and tokens[0] == 'help':
-            topic = tokens[1]
+
+def _target(command, remaining, session):
+    remaining = list(remaining or ())
+    if command == 'help':
+        if len(remaining) == 1:
+            topic = remaining[0]
             if topic == 'topics':
                 topic = TOPICS_INDEX
-            return TOPIC_URL.format(quote(topic, safe=''))
-        if not tokens or tokens == ['help']:
-            return DOCS_HOME
-    return node['docs']['best']
+            return 'topic', None, (topic,)
+        return 'home', None, ()
+    parsed = parse_command(command, remaining, session)
+    if not parsed.operation:
+        if _service_guide(session, command):
+            return 'service', command, ()
+        return 'reference', command, ('index',)
+    if parsed.operation == 'wait' and not parsed.positionals:
+        return 'reference', command, ('wait', 'index')
+    if not operation_known(session, command, parsed.operation):
+        return 'service', command, ()
+    parts = [parsed.operation]
+    if parsed.operation == 'wait' and parsed.positionals:
+        parts.append(parsed.positionals[0])
+    return 'reference', command, tuple(parts)
+
+
+def _service_guide(session, service):
+    """True when ``service`` has a documentation landing page."""
+    if service in _GUIDE_SERVICES:
+        return True
+    if service in _REFERENCE_ONLY:
+        return False
+    if session is None or not hasattr(session, 'get_available_services'):
+        return True
+    try:
+        names = session.get_available_services()
+    except Exception:
+        return True
+    return service in names

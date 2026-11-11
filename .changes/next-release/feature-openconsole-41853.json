@@ -1,5 +1,5 @@
 {
   "type": "feature",
   "category": "in-console",
-  "description": "Add the --open-console global option, which runs a command as usual and, after it completes, opens the AWS Management Console page of the resource the command acted on (signed in with the command's credentials)."
+  "description": "Add the --open-console global option, which opens the AWS Management Console page of the resource the command acted on (signed in with the CLI's current credentials) **after** the command completes."
 }

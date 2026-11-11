@@ -42,37 +42,32 @@ output only ever holds the one URL, so the output can be used in scripts::
 
     $ url=$(aws lambda get-function --function-name my-function --console-link)
 
-If the console URL database that ships with the AWS CLI cannot be read, the
-AWS CLI writes ``Unable to load the console URL database: <path>: <error>``
-to standard error and exits with ``255``.
-
 
 How the Page Is Chosen
 ======================
 
-The AWS CLI includes a database of console pages with one entry for every
-command of this version of the AWS CLI. For each command the first match
-wins:
+The AWS CLI builds the console URL when you run the command. For each
+command the first match wins:
 
-* A curated page for that command. Common services, such as Amazon S3,
-  Amazon EC2, AWS Lambda, Amazon DynamoDB, AWS IAM, Amazon CloudWatch Logs and
-  AWS CloudFormation, have hand-checked pages, including detail pages that use
-  the resource name or ID given on the command line. For example,
-  ``aws ec2 describe-instances --instance-ids i-0123456789abcdef0`` opens that
-  instance, and ``aws s3 ls s3://photos/2026/`` opens that prefix of the
-  bucket.
-* A list, detail or create page for the kind of resource the command works
-  on, recorded from the console's own resource resolver.
-* The home page of the service in the console.
-* The console home page.
+* A page for the resource named on the command line, for services whose
+  console address is known: Amazon S3, Amazon EC2, AWS Lambda, Amazon
+  DynamoDB, AWS IAM, Amazon CloudWatch Logs, AWS CloudFormation and
+  Amazon SQS. For example,
+  ``aws ec2 describe-instances --instance-ids i-0123456789abcdef0`` opens
+  that instance, and ``aws s3 ls s3://photos/2026/`` opens that prefix of
+  the bucket. One resource id opens that resource. Several ids open the
+  list.
+* An ARN in the arguments opens AWS's console resolver,
+  ``/go/view?arn=``. ``--open-console`` also uses an ARN from the API
+  response when the command does not already name a page above.
+* The home page of a service whose console address is known, when the
+  command names no resource.
+* ``/go/view?service=`` for any other service name.
+* The console home page for a CLI-only command such as ``configure``.
 
-When a command has several resource IDs, a list page is opened where the
-console supports one. When the database has no entry for a command (for
-example, a command added by a plugin), the console's service page for the
-command name is opened.
-
-The database records the console page for a command. It does not check that
-the named resource exists, or that you have permission to see it.
+The page is chosen from the command line (and, for ``--open-console``,
+from the API response). It does not check that the named resource exists,
+or that you have permission to see it.
 
 
 Region and Profile
@@ -250,41 +245,8 @@ Limitations
   is redesigned. A page that has moved can show an error or the service
   home page instead.
 * Many consoles are single-page applications whose pages are addressed after
-  a ``#`` in the URL. Those pages cannot be checked without signing in, so
-  some detail pages in the database were recorded from the console's
-  resource resolver and were not opened in a signed-in console.
-* The AWS GovCloud (US) and China console and sign-in hosts are derived by
-  rule from the standard partition's URLs and were not checked against those
-  partitions.
-* The database matches this version of the AWS CLI. A command added to the
-  AWS CLI later, or by a plugin, falls back to the service page of its command
-  name.
-
-
-Regenerating the Console Database
-=================================
-
-The database is ``awscli/data/open_the_console_to_this/commands.json``. It
-is generated, and should not be edited by hand. In a checkout of the fork,
-the scripts under ``scripts/`` rebuild it:
-
-* ``scripts/snapshot-console-resolver`` records what the console's resource
-  resolver answers, into ``scripts/console_db/snapshots/``. Use
-  ``capture NAME...`` to record a snapshot again and
-  ``--check --sample 20`` to compare the recorded snapshots with the live
-  console. It needs network access.
-* Curated pages are YAML files under ``scripts/console_db/overrides/``, one
-  per service, with test cases under
-  ``tests/unit/customizations/open_the_console_to_this/cases/``.
-* ``scripts/validate-console-overrides`` runs those cases against the
-  database with the overrides applied. ``--service NAME`` runs one service
-  and ``--check-urls`` also requests every expected URL.
-* ``scripts/gen-console-db`` walks the command tree of the checkout,
-  combines it with the snapshots and the overrides, and writes the database
-  plus a review file and statistics under ``scripts/console_db/review/``. The
-  same inputs always produce the same output.
-
-For example::
-
-    $ python scripts/validate-console-overrides --service s3
-    $ python scripts/gen-console-db
+  a ``#`` in the URL.
+* The AWS GovCloud (US) and China console and sign-in hosts are chosen from
+  the partition of the region.
+* A service without a built-in page opens through ``/go/view``. That follows
+  an ARN when the command has one, and otherwise opens the service by name.

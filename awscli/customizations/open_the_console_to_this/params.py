@@ -10,12 +10,7 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-"""Parse functions for curated intent params (contract section 1.2).
-
-Each function receives the full list of values typed for one CLI argument
-and returns a string, or None when the param is absent.  A bare flag gives
-an empty list; ``present`` is the only function that returns a value for
-it, every other function returns None for an empty list.
+"""Parse functions for curated intent params.
 """
 
 import re
@@ -350,10 +345,6 @@ PARSERS = {
 
 def parse_param(parse, values):
     """Apply the parse function named ``parse`` (None means ``first``).
-
-    ``values`` is the list typed for the argument (empty for a bare
-    flag); None means the argument was not typed at all.  An unknown name
-    raises ``KeyError``; callers decide what that means.
     """
     func = PARSERS[parse or DEFAULT_PARSE]
     return func(None if values is None else list(values))

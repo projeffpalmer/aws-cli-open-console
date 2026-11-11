@@ -11,12 +11,7 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 """The account id of the credentials the console is opened with.
-
-The id comes from the identity of the resolved credentials, never from
-profile keys such as ``sso_account_id`` (they can disagree with
-higher-precedence credentials): the ``GetFederationToken`` response ARN
-when sign-in makes that call anyway, else one STS ``GetCallerIdentity``
-call, cached for the life of the process (a failure is cached as None).
+The account id comes from the default credential precedence chain.
 """
 
 import logging

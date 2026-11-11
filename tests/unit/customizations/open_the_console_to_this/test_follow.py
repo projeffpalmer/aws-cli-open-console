@@ -12,24 +12,15 @@
 # language governing permissions and limitations under the License.
 import pytest
 
-from awscli.customizations.open_the_console_to_this import (
-    db,
-    follow,
-    resolver,
-)
+from awscli.customizations.open_the_console_to_this import follow, resolver
 
 REGION = 'us-west-2'
 EC2 = f'https://{REGION}.console.aws.amazon.com/ec2/home?region={REGION}'
 
 
-@pytest.fixture(scope='module')
-def root():
-    return db.load_db()['root']
-
-
-def resolve(root, argv, response):
+def resolve(argv, response):
     ctx = resolver.Context(REGION, 'aws')
-    return follow.resolve_after_run(root, argv[0], argv[1:], response, ctx)
+    return follow.resolve_after_run(argv[0], argv[1:], response, ctx)
 
 
 class TestFindValues:
@@ -74,9 +65,8 @@ class TestFindValues:
 
 
 class TestResolveAfterRun:
-    def test_create_table_opens_the_table(self, root):
+    def test_create_table_opens_the_table(self):
         decision = resolve(
-            root,
             ['dynamodb', 'create-table', '--table-name', 'MusicCollection'],
             {'TableDescription': {'TableName': 'MusicCollection'}},
         )
@@ -84,19 +74,17 @@ class TestResolveAfterRun:
             f'https://{REGION}.console.aws.amazon.com/dynamodbv2/home'
             f'?region={REGION}#table?name=MusicCollection'
         )
-        assert decision.node_path == 'aws.dynamodb.describe-table'
+        assert decision.node_path == 'aws.dynamodb.create-table'
 
-    def test_run_instances_opens_the_instance(self, root):
+    def test_run_instances_opens_the_instance(self):
         decision = resolve(
-            root,
             ['ec2', 'run-instances', '--image-id', 'ami-1'],
             {'Instances': [{'InstanceId': 'i-0aaa'}]},
         )
         assert decision.url == EC2 + '#InstanceDetails:instanceId=i-0aaa'
 
-    def test_typed_value_when_the_response_has_none(self, root):
+    def test_typed_value_when_the_response_has_none(self):
         decision = resolve(
-            root,
             ['s3api', 'create-bucket', '--bucket', 'photos'],
             {'Location': '/photos'},
         )
@@ -104,38 +92,33 @@ class TestResolveAfterRun:
             f'https://console.aws.amazon.com/s3/buckets/photos?region={REGION}'
         )
 
-    def test_typed_positionals_reach_a_sibling(self, root):
-        decision = resolve(root, ['s3', 'mb', 's3://photos'], None)
+    def test_typed_positionals_reach_the_bucket(self):
+        decision = resolve(['s3', 'mb', 's3://photos'], None)
         assert decision.url == (
             f'https://console.aws.amazon.com/s3/buckets/photos?region={REGION}'
         )
 
-    def test_create_without_an_identifier_opens_the_list(self, root):
-        decision = resolve(root, ['dynamodb', 'create-table'], {})
+    def test_create_without_an_identifier_opens_the_list(self):
+        decision = resolve(['dynamodb', 'create-table'], {})
         assert decision.url == (
             f'https://{REGION}.console.aws.amazon.com/dynamodbv2/home'
             f'?region={REGION}#table'
         )
 
-    def test_no_resource_falls_back_to_the_typed_command(self, root):
+    def test_no_resource_falls_back_to_the_typed_command(self):
         ctx = resolver.Context(REGION, 'aws')
-        assert resolve(root, ['configure', 'list'], None) == resolver.resolve(
-            root, 'configure', ['list'], ctx
+        assert resolve(['configure', 'list'], None) == resolver.resolve(
+            'configure', ['list'], ctx
         )
 
-    def test_unknown_command_falls_back(self, root):
-        decision = resolve(root, ['not-a-service', 'x'], {'Name': 'n'})
+    def test_unknown_command_falls_back(self):
+        decision = resolve(['not-a-service', 'x'], {'Name': 'n'})
         assert decision.source == resolver.FALLBACK_SOURCE
 
-
-class TestViewCandidates:
-    def test_canonical_describe_comes_first(self, root):
-        dynamodb = root['children']['dynamodb']
-        node = dynamodb['children']['create-table']
-        names = [c['name'] for c in follow.view_candidates(node, dynamodb)]
-        assert names[0] == 'describe-table'
-
-    def test_the_node_itself_comes_first_when_it_shows_one(self, root):
-        ec2 = root['children']['ec2']
-        node = ec2['children']['describe-instances']
-        assert follow.view_candidates(node, ec2)[0] is node
+    def test_one_response_arn_uses_go_view(self):
+        arn = 'arn:aws:kms:us-west-2:123456789012:key/abcd'
+        decision = resolve(
+            ['kms', 'create-key'],
+            {'KeyMetadata': {'Arn': arn}},
+        )
+        assert decision.url == resolver.go_view(REGION, arn, 'aws')

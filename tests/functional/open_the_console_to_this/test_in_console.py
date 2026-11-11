@@ -17,13 +17,11 @@ import tempfile
 from urllib.parse import quote_plus
 
 from awscli.clidriver import AWSCLIEntryPoint, create_clidriver
-from awscli.customizations.open_the_console_to_this import db, docs, signin
-from awscli.testutils import mock
+from awscli.customizations.open_the_console_to_this import docs, signin
 from tests.functional.open_the_console_to_this.support import (
     ACCOUNT,
     FEDERATION_RESPONSE,
     LOGIN_PREFIX,
-    PKG,
     SIGNIN_TOKEN,
     ConsoleCommandTest,
 )
@@ -264,21 +262,13 @@ class TestInConsole(ConsoleCommandTest):
             'https://console.aws.amazon.com/s3/buckets?region=us-east-1\n',
         )
 
-    def test_command_missing_from_the_database_uses_go_view(self):
-        database = db.load_db()
-        root = dict(database['root'])
-        root['children'] = {
-            name: child
-            for name, child in root['children'].items()
-            if name != 's3'
-        }
-        with mock.patch(
-            f'{PKG}.db.load_db', return_value=dict(database, root=root)
-        ):
-            stdout, _, _ = self.run_cmd('s3 ls --console-link')
+    def test_service_without_a_built_in_page_uses_go_view(self):
+        stdout, _, _ = self.run_cmd(
+            'sts get-caller-identity --console-link'
+        )
         self.assertEqual(
             stdout,
-            'https://console.aws.amazon.com/go/view?service=s3'
+            'https://console.aws.amazon.com/go/view?service=sts'
             '&region=us-east-1\n',
         )
 

@@ -11,15 +11,8 @@
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
 """Sign the browser in to the console with the CLI's own credentials.
-
 Credentials come from ``session.get_credentials()``, so they follow the
-CLI's precedence exactly.  Temporary credentials of a role or federated
-user session go straight to the federation endpoint (other temporary
-credentials are refused); long-term IAM user keys are first exchanged with
-STS ``GetFederationToken``.  Every failure degrades to the plain console URL
-and a one-line warning.  Nothing secret is logged or put in a message: the
-sign-in URL is a bearer secret, so it is returned as a :class:`SigninUrl`,
-which shows its token hashed to everything but the browser launcher.
+CLI's precedence chain.
 """
 
 import contextlib
@@ -92,9 +85,6 @@ class SigninCredentials:
 
 def hashed(secret):
     """Return the stand-in that is shown instead of ``secret``.
-
-    It is the start of the secret's SHA-256: enough to tell two secrets
-    apart in a message or a log, and of no use for signing in.
     """
     digest = hashlib.sha256(secret.encode('utf-8')).hexdigest()
     return f'sha256:{digest[:HASH_DIGITS]}'
@@ -102,11 +92,6 @@ def hashed(secret):
 
 class SigninUrl:
     """The console login URL, whose sign-in token is a bearer secret.
-
-    ``str()``, ``repr()`` and string formatting give the URL with the token
-    hashed, so the object is safe to print, log or put in a message.  Only
-    :meth:`unhashed` gives the URL that signs in, and only the browser
-    launcher calls it.
     """
 
     __slots__ = ('_host', '_destination', '_token')
@@ -136,9 +121,6 @@ class SigninUrl:
 
     def hashed_in(self, text):
         """Return ``text`` with the token hashed wherever it is quoted.
-
-        The token is looked for as issued and as encoded in the URL, so a
-        quoted copy of the sign-in URL comes out as ``str(self)``.
         """
         stand_in = hashed(self._token)
         forms = {self._token, quote_plus(self._token)}
@@ -155,10 +137,6 @@ def _warning(message):
 
 def resolve_credentials(session):
     """Return ``(SigninCredentials or None, warning or None)``.
-
-    Refreshable providers (SSO, assume role, ``aws login``) refresh in
-    ``get_frozen_credentials()`` and may raise there, so both calls are
-    guarded.
     """
     try:
         creds = session.get_credentials()
@@ -201,12 +179,6 @@ class _DropSecretsFilter(logging.Filter):
 @contextlib.contextmanager
 def _secrets_kept_out_of_logs(*needles):
     """Drop log records mentioning ``needles`` while the block runs.
-
-    With ``--debug`` urllib3 logs request targets (the getSigninToken URL
-    carries the credentials) and botocore logs response bodies (the
-    GetFederationToken response carries new credentials).  The filter goes
-    on every handler, so it also catches records propagated from loggers
-    that do not exist yet.
     """
     drop = _DropSecretsFilter(needles)
     handlers = set(logging.getLogger().handlers)
@@ -224,11 +196,6 @@ def _secrets_kept_out_of_logs(*needles):
 
 def _verify(session):
     """Return the TLS ``verify`` value for the sign-in request.
-
-    Mirrors botocore's ``Endpoint`` rule: a non-empty string is a CA
-    bundle path and None means the default trust store.  Anything else (a
-    blank ``ca_bundle``) is invalid configuration; it must never reach
-    ``URLLib3Session``, which reads a falsy value as "do not verify".
     """
     verify = session.get_config_variable('ca_bundle')
     if verify is None or verify is True:
@@ -240,9 +207,6 @@ def _verify(session):
 
 def _http_get(session, url):
     """GET ``url`` and return ``(status_code, text)``.
-
-    Uses the session's ``ca_bundle`` setting and the environment's proxies,
-    as botocore does for API calls.
     """
     verify = _verify(session)
     http = URLLib3Session(
@@ -260,10 +224,6 @@ def _http_get(session, url):
 @contextlib.contextmanager
 def _history_paused():
     """Keep the block's API calls out of ``cli_history``.
-
-    The history recorder stores raw and parsed responses, and the
-    GetFederationToken response carries fresh credentials.  The recorder
-    is re-enabled afterwards only if it was enabled before.
     """
     recorder = get_global_history_recorder()
     was_enabled = bool(getattr(recorder, '_enabled', False))
@@ -316,14 +276,6 @@ def _federation_token(session, creds, region, account_resolver):
 
 def _check_role_session(creds, account_resolver):
     """Refuse temporary credentials the console will not federate.
-
-    The federation endpoint issues a sign-in token for any temporary
-    credentials, but the console only logs in with AssumeRole and
-    GetFederationToken sessions.  Others, such as ``aws login`` or
-    GetSessionToken credentials of an IAM user or the root user, fail on
-    the console's error page, and GetFederationToken cannot help because
-    it needs long-term keys.  When the identity cannot be looked up the
-    sign-in is attempted anyway.
     """
     if creds.method in ROLE_SESSION_PROVIDERS or account_resolver is None:
         return
@@ -375,10 +327,6 @@ def federation_login_url(
     session, creds, destination, partition, region, account_resolver
 ):
     """Return the console login URL for ``destination`` as a ``SigninUrl``.
-
-    Raises ``SigninError`` on any failure.  ``SessionDuration`` is never
-    sent: it is not allowed for GetFederationToken or role-chained
-    credentials.
     """
     host = urls.signin_host(partition)
     # Checked before any request, so a blank ca_bundle never sends the
@@ -395,9 +343,6 @@ def federation_login_url(
 
 def wrap(session, destination, partition, region, account_resolver):
     """Return ``(url_to_open, warning or None)``.
-
-    The URL to open is a ``SigninUrl`` when sign-in was applied, otherwise
-    it is ``destination``.
     """
     creds, warning = resolve_credentials(session)
     if creds is None:

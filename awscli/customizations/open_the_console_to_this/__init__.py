@@ -10,11 +10,11 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-"""Open the AWS console page for an AWS CLI command (``--console-link``).
+"""Open the AWS console page for an AWS CLI command.
 
-The modules of this package resolve a typed CLI command to a console or
-documentation URL using the database in
-``awscli/data/open_the_console_to_this/commands.json``.
+``--console-link`` opens the page instead of running the command.
+``--open-console`` opens it after the command runs. The page is chosen
+at runtime.
 """
 
 import logging
@@ -24,7 +24,6 @@ import traceback
 LOG = logging.getLogger(__name__)
 
 DEFAULT_REGION = 'us-east-1'
-HELP_TOKEN = 'help'
 
 
 def open_console(session, parsed_args, remaining):
@@ -35,9 +34,7 @@ def open_console(session, parsed_args, remaining):
     """
     # Imported here so that importing this package stays cheap and safe.
     from awscli.customizations.open_the_console_to_this import (
-        args,
         browser,
-        db,
         docs,
         resolver,
         signin,
@@ -46,34 +43,18 @@ def open_console(session, parsed_args, remaining):
     from awscli.customizations.open_the_console_to_this.account import (
         AccountResolver,
     )
-    from awscli.customizations.utils import uni_print
 
     command = parsed_args.command
     remaining = list(remaining or ())
-    try:
-        root = db.load_db()['root']
-    except (OSError, ValueError) as exc:
-        uni_print(
-            'Unable to load the console URL database: '
-            f'{db.DB_PATH}: {exc}\n',
-            sys.stderr,
-        )
-        return 255
-
-    node, _, rest = db.find_node(root, [command] + remaining)
-    if command == HELP_TOKEN or _help_positional(args, node, rest):
-        url = docs.docs_url(root, node, rest)
-        LOG.debug(
-            'Console: documentation for %s: %s',
-            node.get('path') or 'aws',
-            url,
-        )
+    if resolver.is_help(command, remaining, session):
+        url = docs.docs_url(command, remaining, session)
+        LOG.debug('Console: documentation for %s: %s', command, url)
         return browser.deliver(url, url, session)
 
     region, partition, account_resolver, ctx = _console_context(
         session, urls, resolver, AccountResolver
     )
-    decision = resolver.resolve(root, command, remaining, ctx)
+    decision = resolver.resolve(command, remaining, ctx)
     open_url = _sign_in(
         session, decision, partition, region, account_resolver, signin, browser
     )
@@ -86,26 +67,13 @@ def run_and_open(session, parsed_args, remaining, command_callable):
     Called from ``CLIDriver.main()`` when ``--open-console`` is given. The
     command runs exactly as without the flag, including displaying its
     output, and its return code is returned. The console opens only after
-    that command has completed successfully. For an API operation
-    ``CLIOperationCaller.invoke`` hands the response to the
-    :class:`ConsoleOpener` so a paginated response is fetched once and the
-    page can be chosen from it; any other successful command opens the page
-    its typed arguments resolve to. ``help`` only shows help.
+    that command has completed successfully. 
     """
-    from awscli.customizations.open_the_console_to_this import args, db
+    from awscli.customizations.open_the_console_to_this import resolver
 
     remaining = list(remaining or ())
     command = parsed_args.command
-    try:
-        node, _, rest = db.find_node(
-            db.load_db()['root'], [command] + remaining
-        )
-        wants_help = command == HELP_TOKEN or _help_positional(
-            args, node, rest
-        )
-    except Exception:
-        LOG.debug('Console: database not usable', exc_info=True)
-        wants_help = False
+    wants_help = resolver.is_help(command, remaining, session)
     if wants_help:
         return command_callable(remaining, parsed_args)
     opener = ConsoleOpener(session, command, remaining)
@@ -132,9 +100,7 @@ class ConsoleOpener:
         """Remember ``response`` and return what to display.
 
         A paginated response is fetched once here and replayed to the
-        formatter, so no page is requested twice. Errors fetching pages
-        are the command's own and propagate. The browser is not opened
-        here; :meth:`open` runs after the command completes.
+        formatter, so no page is requested twice.
         """
         if self._has_response:
             return response
@@ -171,10 +137,7 @@ class ConsoleOpener:
             uni_print(f'Could not open the console ({reason}).\n', sys.stderr)
 
     def _token_hashed(self, text):
-        """Return ``text`` with the sign-in token, if one was issued, hashed.
-
-        The error could quote the sign-in URL, and its text goes to stderr
-        and to the debug log.
+        """Return ``text`` hashed.
         """
         if self._open_url is None or isinstance(self._open_url, str):
             return text
@@ -183,7 +146,6 @@ class ConsoleOpener:
     def _open(self, response):
         from awscli.customizations.open_the_console_to_this import (
             browser,
-            db,
             follow,
             resolver,
             signin,
@@ -194,12 +156,11 @@ class ConsoleOpener:
         )
 
         session = self._session
-        root = db.load_db()['root']
         region, partition, account_resolver, ctx = _console_context(
             session, urls, resolver, AccountResolver
         )
         decision = follow.resolve_after_run(
-            root, self._command, self._remaining, response, ctx
+            self._command, self._remaining, response, ctx
         )
         self._open_url = _sign_in(
             session,
@@ -246,7 +207,12 @@ def _replay_class(base):
 def _console_context(session, urls, resolver, account_resolver_cls):
     region, partition = _location(session, urls)
     account_resolver = account_resolver_cls(session, region)
-    ctx = resolver.Context(region, partition, account_id=account_resolver.get)
+    ctx = resolver.Context(
+        region,
+        partition,
+        account_id=account_resolver.get,
+        session=session,
+    )
     return region, partition, account_resolver, ctx
 
 
@@ -261,10 +227,7 @@ def _location(session, urls):
 def _sign_in(
     session, decision, partition, region, account_resolver, signin, browser
 ):
-    """Return the URL to open; a sign-in warning goes to stderr.
-
-    Print-only mode opens nothing, so nothing is signed in and the console
-    URL is returned: a sign-in URL is only made for a browser to open.
+    """Return the URL to open.
     """
     from awscli.customizations.utils import uni_print
 
@@ -292,27 +255,8 @@ def _sign_in(
     return open_url
 
 
-def _help_positional(args, node, rest):
-    """True when ``help`` is a positional, not an option value.
-
-    ``rest`` is parsed with the node's positional names, flags and
-    scalars exactly as ``resolver.resolve`` does, so ``--function-name
-    help`` is a value while ``s3 ls s3://bucket help`` asks for help.
-    """
-    parsed = args.parse_remaining(
-        rest,
-        node.get('positional') or [],
-        flags=node.get('flags', ()),
-        scalars=node.get('scalars', ()),
-    )
-    return parsed.help
-
-
 def _credential_method(session, warning, signin):
     """The provider name of the already resolved credentials, if any.
-
-    Only asked when ``signin.wrap`` resolved credentials (the session
-    caches them), so this never runs the provider chain a second time.
     """
     if warning is not None and not warning.startswith(
         'Console sign-in failed'

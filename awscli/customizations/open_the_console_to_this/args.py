@@ -15,13 +15,7 @@
 
 class ParsedArgs:
     """The result of :func:`parse_remaining`.
-
     ``options`` maps an option name without its leading dashes
-    (``instance-ids``) to the list of values typed for it (an empty list
-    for a flag). ``positionals`` lists every positional token in order,
-    except ``help``. ``positional_values`` maps each positional name to
-    the values assigned to it. ``help`` is true when a positional token
-    equals ``help``.
     """
 
     def __init__(self):
@@ -41,16 +35,6 @@ class ParsedArgs:
 
 def parse_remaining(tokens, positional_names, flags=(), scalars=()):
     """Parse ``tokens`` into options and positionals.
-
-    ``--k v1 v2`` collects values until the next token starting with
-    ``--``; ``--k=v`` gives one value; a bare ``--k`` is a flag with an
-    empty list; repeated options append; a literal ``--`` makes every
-    later token positional. An option named in ``flags`` (names without
-    the dashes) never takes a value, so the next token is a positional or
-    the next option; an option named in ``scalars`` takes exactly one
-    value. Positional tokens are assigned to ``positional_names`` in
-    order, one each, and the last name receives every remaining token (so
-    ``['paths']`` gets them all).
     """
     flags = frozenset(flags or ())
     scalars = frozenset(scalars or ())

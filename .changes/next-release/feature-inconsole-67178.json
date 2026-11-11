@@ -1,5 +1,5 @@
 {
   "type": "feature",
   "category": "in-console",
-  "description": "Add the --console-link global option, which opens the AWS Management Console page that matches a command (signed in with the command's credentials) instead of running it."
+  "description": "Add the --console-link global option, which opens the AWS Management Console page that matches a command (signed in with the CLI's current credentials) **instead** of running it."
 }

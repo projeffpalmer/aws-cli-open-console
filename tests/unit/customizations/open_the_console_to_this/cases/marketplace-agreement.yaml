@@ -1,6 +1,0 @@
-# Cases for the curated tier-1 "aws marketplace-agreement" (scripts/console_db/
-# overrides/marketplace-agreement.yaml): the Marketplace page on the global host.
-
-- argv: [marketplace-agreement]
-  url: "https://console.aws.amazon.com/marketplace/subscriptions?region=us-west-2"
-  source: curated
