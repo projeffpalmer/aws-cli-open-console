@@ -15,13 +15,18 @@ import os
 import webbrowser
 
 from awscli.customizations.open_the_console_to_this import browser
+from awscli.customizations.open_the_console_to_this.signin import (
+    SigninUrl,
+    hashed,
+)
 from awscli.testutils import mock, unittest
 
 CONSOLE_URL = 'https://console.aws.amazon.com/s3/buckets?region=us-east-1'
-SIGNIN_URL = (
-    'https://signin.aws.amazon.com/federation?Action=login'
-    '&Issuer=open-the-console-to-this&SigninToken=secret-token'
-)
+SIGNIN = SigninUrl('signin.aws.amazon.com', CONSOLE_URL, 'secret-token')
+# What the browser is given, and what a message shows in its place.
+SIGNIN_URL = SIGNIN.unhashed()
+HASHED_SIGNIN_URL = str(SIGNIN)
+TOKEN_HASH = hashed('secret-token')
 OPEN = 'webbrowser.open_new_tab'
 NO_BROWSER_WARNING = (
     'Could not open a browser (no runnable browser found); the URL is '
@@ -105,17 +110,18 @@ class TestDeliver(unittest.TestCase):
         self.addCleanup(open_patcher.stop)
 
     def test_prints_console_url_and_opens_signin_url(self):
-        rc = browser.deliver(CONSOLE_URL, SIGNIN_URL, make_session())
+        rc = browser.deliver(CONSOLE_URL, SIGNIN, make_session())
         self.assertEqual(rc, 0)
         self.assertEqual(self.stdout.getvalue(), CONSOLE_URL + '\n')
         self.assertEqual(self.stderr.getvalue(), '')
         self.open_browser.assert_called_once_with(SIGNIN_URL)
 
-    def test_print_only_prints_the_url_to_open(self):
+    def test_print_only_prints_the_console_url_not_the_signin_url(self):
         session = make_session({'in_console_open': 'false'})
-        rc = browser.deliver(CONSOLE_URL, SIGNIN_URL, session)
+        rc = browser.deliver(CONSOLE_URL, SIGNIN, session)
         self.assertEqual(rc, 0)
-        self.assertEqual(self.stdout.getvalue(), SIGNIN_URL + '\n')
+        self.assertEqual(self.stdout.getvalue(), CONSOLE_URL + '\n')
+        self.assertEqual(self.stderr.getvalue(), '')
         self.assertFalse(self.open_browser.called)
 
     def test_print_only_without_signin_prints_console_url(self):
@@ -135,13 +141,13 @@ class TestDeliver(unittest.TestCase):
         with mock.patch.dict(
             'os.environ', {'LD_LIBRARY_PATH': '/bundle'}, clear=False
         ):
-            browser.deliver(CONSOLE_URL, SIGNIN_URL, make_session())
+            browser.deliver(CONSOLE_URL, SIGNIN, make_session())
         self.assertNotIn('LD_LIBRARY_PATH', environ)
         self.assertEqual(environ.get('PYINSTALLER_RESET_ENVIRONMENT'), '1')
 
     def test_no_runnable_browser_warns_and_succeeds(self):
         self.open_browser.return_value = False
-        rc = browser.deliver(CONSOLE_URL, SIGNIN_URL, make_session())
+        rc = browser.deliver(CONSOLE_URL, SIGNIN, make_session())
         self.assertEqual(rc, 0)
         self.assertEqual(self.stdout.getvalue(), CONSOLE_URL + '\n')
         self.assertEqual(self.stderr.getvalue(), NO_BROWSER_WARNING)
@@ -150,14 +156,14 @@ class TestDeliver(unittest.TestCase):
     def test_no_runnable_browser_warning_does_not_leak_the_signin_url(self):
         self.open_browser.return_value = False
         with self.assertLogs(browser.LOG.name, 'DEBUG') as logs:
-            browser.deliver(CONSOLE_URL, SIGNIN_URL, make_session())
+            browser.deliver(CONSOLE_URL, SIGNIN, make_session())
         self.assertNotIn('secret-token', self.stderr.getvalue())
         self.assertNotIn(SIGNIN_URL, self.stderr.getvalue())
         self.assertNotIn('secret-token', '\n'.join(logs.output))
 
     def test_browser_error_warns_and_succeeds(self):
         self.open_browser.side_effect = webbrowser.Error('no runnable browser')
-        rc = browser.deliver(CONSOLE_URL, SIGNIN_URL, make_session())
+        rc = browser.deliver(CONSOLE_URL, SIGNIN, make_session())
         self.assertEqual(rc, 0)
         self.assertEqual(self.stdout.getvalue(), CONSOLE_URL + '\n')
         self.assertEqual(
@@ -166,19 +172,54 @@ class TestDeliver(unittest.TestCase):
             'printed above.\n',
         )
 
-    def test_os_error_warns_without_leaking_the_signin_url(self):
+    def test_os_error_warning_has_the_signin_token_hashed(self):
         self.open_browser.side_effect = OSError(f'cannot run {SIGNIN_URL}')
         with self.assertLogs(browser.LOG.name, 'DEBUG') as logs:
-            rc = browser.deliver(CONSOLE_URL, SIGNIN_URL, make_session())
+            rc = browser.deliver(CONSOLE_URL, SIGNIN, make_session())
         self.assertEqual(rc, 0)
+        self.assertEqual(
+            self.stderr.getvalue(),
+            f'Could not open a browser (cannot run {HASHED_SIGNIN_URL}); '
+            'the URL is printed above.\n',
+        )
+        self.assertIn(f'SigninToken={TOKEN_HASH}', self.stderr.getvalue())
+        self.assertNotIn('secret-token', self.stderr.getvalue())
+        self.assertNotIn('secret-token', '\n'.join(logs.output))
+        self.assertNotIn('secret-token', self.stdout.getvalue())
+
+    def test_unexpected_error_is_a_warning_with_the_token_hashed(self):
+        self.open_browser.side_effect = RuntimeError(
+            f'no handler for {SIGNIN_URL}'
+        )
+        with self.assertLogs(browser.LOG.name, 'DEBUG') as logs:
+            rc = browser.deliver(CONSOLE_URL, SIGNIN, make_session())
+        self.assertEqual(rc, 0)
+        self.assertEqual(self.stdout.getvalue(), CONSOLE_URL + '\n')
+        self.assertEqual(
+            self.stderr.getvalue(),
+            f'Could not open a browser (no handler for {HASHED_SIGNIN_URL}); '
+            'the URL is printed above.\n',
+        )
+        self.assertNotIn('secret-token', self.stderr.getvalue())
+        self.assertNotIn('secret-token', '\n'.join(logs.output))
+
+    def test_bare_token_in_an_error_is_hashed(self):
+        self.open_browser.side_effect = OSError('bad argument secret-token')
+        browser.deliver(CONSOLE_URL, SIGNIN, make_session())
+        self.assertEqual(
+            self.stderr.getvalue(),
+            f'Could not open a browser (bad argument {TOKEN_HASH}); the URL '
+            'is printed above.\n',
+        )
+
+    def test_plain_url_in_an_error_is_replaced(self):
+        self.open_browser.side_effect = OSError(f'cannot run {CONSOLE_URL}')
+        browser.deliver(CONSOLE_URL, CONSOLE_URL, make_session())
         self.assertEqual(
             self.stderr.getvalue(),
             'Could not open a browser (cannot run <url>); the URL is '
             'printed above.\n',
         )
-        self.assertNotIn('secret-token', self.stderr.getvalue())
-        self.assertNotIn('secret-token', '\n'.join(logs.output))
-        self.assertNotIn('secret-token', self.stdout.getvalue())
 
     def test_error_without_message_uses_its_type(self):
         self.open_browser.side_effect = OSError()
@@ -190,25 +231,38 @@ class TestOpenBesideOutput(unittest.TestCase):
     setUp = TestDeliver.setUp
 
     def test_opens_signin_url_and_leaves_stdout_alone(self):
-        browser.open_beside_output(CONSOLE_URL, SIGNIN_URL, make_session())
+        browser.open_beside_output(CONSOLE_URL, SIGNIN, make_session())
         self.assertEqual(self.stdout.getvalue(), '')
         self.assertEqual(self.stderr.getvalue(), '')
         self.open_browser.assert_called_once_with(SIGNIN_URL)
 
-    def test_print_only_prints_the_url_to_open_on_stderr(self):
+    def test_print_only_prints_the_console_url_on_stderr(self):
         session = make_session({'in_console_open': 'false'})
-        browser.open_beside_output(CONSOLE_URL, SIGNIN_URL, session)
+        browser.open_beside_output(CONSOLE_URL, SIGNIN, session)
         self.assertEqual(self.stdout.getvalue(), '')
-        self.assertEqual(self.stderr.getvalue(), SIGNIN_URL + '\n')
+        self.assertEqual(self.stderr.getvalue(), CONSOLE_URL + '\n')
         self.assertFalse(self.open_browser.called)
 
     def test_no_runnable_browser_names_the_console_page(self):
         self.open_browser.return_value = False
-        browser.open_beside_output(CONSOLE_URL, SIGNIN_URL, make_session())
+        browser.open_beside_output(CONSOLE_URL, SIGNIN, make_session())
         self.assertEqual(self.stdout.getvalue(), '')
         self.assertEqual(
             self.stderr.getvalue(),
             'Could not open a browser (no runnable browser found); the '
             f'console page is {CONSOLE_URL}\n',
+        )
+        self.assertNotIn('secret-token', self.stderr.getvalue())
+
+    def test_error_names_the_console_page_with_the_token_hashed(self):
+        self.open_browser.side_effect = RuntimeError(
+            f'no handler for {SIGNIN_URL}'
+        )
+        browser.open_beside_output(CONSOLE_URL, SIGNIN, make_session())
+        self.assertEqual(self.stdout.getvalue(), '')
+        self.assertEqual(
+            self.stderr.getvalue(),
+            f'Could not open a browser (no handler for {HASHED_SIGNIN_URL}); '
+            f'the console page is {CONSOLE_URL}\n',
         )
         self.assertNotIn('secret-token', self.stderr.getvalue())

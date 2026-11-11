@@ -14,15 +14,10 @@
 
 Loads the database JSON, renders ``url.best``, ``url.with_id``,
 ``url.with_ids`` and every ``url.variants`` template of every node whose
-``url.source`` is selected (host ``console.aws.amazon.com``, region
-``us-west-2``, account ``123456789012``, ``sample-id`` for ``{id}`` and
-``{ids}``, curated params from the first matching resolver case), strips
+``url.source`` is selected, strips
 the fragment, requests each distinct URL once with
 :func:`console_db.validate.fetch` and classifies the answer with
-:func:`console_db.validate.classify_response` (GovCloud and China hosts
-are SKIP).  Writes a Markdown report.  Exit status 1 only when a URL used
-by a ``curated`` or ``resolver:*`` node fails.  Stdlib plus ruamel.yaml
-only.
+:func:`console_db.validate.classify_response`
 """
 
 import argparse

@@ -32,7 +32,10 @@ AWS STS ``GetCallerIdentity`` call when the chosen page needs your account ID
 or the type of your temporary credentials has to be checked, and one request
 to the AWS federation endpoint. Opening a documentation page
 with ``help`` (see `Help and Documentation`_) makes no network calls and does
-not read your credentials.
+not read your credentials. In print-only mode (see
+`Printing the URL Without Opening a Browser`_) nothing is signed in, so the
+only possible call is ``GetCallerIdentity`` for a page that needs your
+account ID.
 
 Messages, such as a sign-in warning, are written to standard error. Standard
 output only ever holds the one URL, so the output can be used in scripts::
@@ -99,7 +102,10 @@ credential precedence: the profile given with ``--profile``, environment
 variables, assume role, assume role with web identity, IAM Identity Center,
 ``aws login``, the shared credentials file, a credential process, the config
 file, the container provider and the instance profile. Sign-in cannot be
-configured or turned off.
+configured or turned off: it takes place whenever the console is opened in
+a browser. In print-only mode (see
+`Printing the URL Without Opening a Browser`_) no browser is opened, so
+nothing is signed in.
 
 * **Temporary credentials** (credentials with a session token, such as those
   from IAM Identity Center, assume role or ``aws login``) are exchanged
@@ -121,8 +127,12 @@ configured or turned off.
   ``sts:GetFederationToken``.
 
 The sign-in URL opened in the browser is a bearer secret that is valid for 15
-minutes. It is never printed in normal mode and never logged, including with
-``--debug``. Only the console URL is printed.
+minutes. It is given to the browser and to nothing else: it is never printed
+and never logged, including with ``--debug``. Only the console URL is
+printed. Where a message has to quote the sign-in URL, such as the warning
+when the browser cannot open it, the sign-in token in it is replaced by
+``sha256:`` and the first 16 hexadecimal digits of the token's SHA-256 hash,
+which cannot be used to sign in.
 
 When no credentials can be found, the console is opened without signing in
 and the following warning is written to standard error::
@@ -163,9 +173,11 @@ in one place does not override a ``false`` value in the other. For example::
     region = us-west-2
     in_console_open = false
 
-In print-only mode the printed line is the URL to open: the sign-in URL when
-sign-in succeeded, otherwise the console URL. Paste it into a browser within
-15 minutes. Because it is a bearer secret, do not store it or share it.
+In print-only mode the printed line is the console URL, the same line as
+when a browser is opened. Nothing is signed in and no sign-in URL is made,
+because a sign-in URL is only ever given to a browser. The console asks you
+to sign in when you open the printed URL, unless that browser is already
+signed in.
 
 ``in_console_open`` is the only setting for this option.
 
@@ -180,7 +192,7 @@ command acted on::
     $ aws dynamodb create-table --table-name MusicCollection ... --open-console
 
 The table is created and the AWS CLI output is the same as without the
-option. Before the output is displayed, the browser opens the
+option. After the command completes, the browser opens the
 ``MusicCollection`` table page, signed in as described in `Signing In`_,
 where the table's status (``Creating``, then ``Active``) is shown.
 
@@ -203,9 +215,8 @@ Differences from ``--console-link``:
 * The command always runs. Nothing is opened when it fails.
 * Standard output is the command's own output. The console URL is not
   printed. In print-only mode (see
-  `Printing the URL Without Opening a Browser`_) the URL to open is written
-  to standard error instead, and it is a bearer secret when sign-in
-  succeeded.
+  `Printing the URL Without Opening a Browser`_) the console URL is written
+  to standard error instead, and nothing is signed in.
 * ``help`` only shows help.
 * With both options, ``--console-link`` wins and the command does not run.
 

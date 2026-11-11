@@ -15,18 +15,22 @@ import io
 import logging
 
 from awscli.customizations.open_the_console_to_this import (
+    ConsoleOpener,
     db,
     docs,
     open_console,
+    signin,
 )
 from awscli.testutils import mock, unittest
 
 PKG = 'awscli.customizations.open_the_console_to_this'
 ACCOUNT = '123456789012'
-SIGNIN_URL = (
-    'https://signin.aws.amazon.com/federation?Action=login'
-    '&Issuer=open-the-console-to-this&SigninToken=secret-token'
+SIGNIN = signin.SigninUrl(
+    'signin.aws.amazon.com', 'https://console.aws.amazon.com/', 'secret-token'
 )
+# What the browser is given.
+SIGNIN_URL = SIGNIN.unhashed()
+TOKEN_HASH = signin.hashed('secret-token')
 S3_DOCS = 'https://docs.aws.amazon.com/s3/'
 LS_DOCS = 'https://docs.aws.amazon.com/cli/latest/reference/s3/ls.html'
 LAMBDA_DOCS = 'https://docs.aws.amazon.com/lambda/'
@@ -125,7 +129,7 @@ class BaseOpenConsoleTest(unittest.TestCase):
         self.stderr = io.StringIO()
         self.session = FakeSession()
         self.load_db = mock.Mock(return_value={'schema': 1, 'root': ROOT})
-        self.wrap = mock.Mock(side_effect=lambda s, d, *a: (SIGNIN_URL, None))
+        self.wrap = mock.Mock(side_effect=lambda s, d, *a: (SIGNIN, None))
         patchers = [
             mock.patch('sys.stdout', self.stdout),
             mock.patch('sys.stderr', self.stderr),
@@ -261,11 +265,20 @@ class TestOpenConsole(BaseOpenConsoleTest):
         self.assertEqual(destination, url)
         self.assertEqual((partition, region), ('aws', 'us-west-2'))
 
-    def test_print_only_prints_signin_url(self):
+    def test_print_only_prints_console_url_and_does_not_sign_in(self):
         with mock.patch.dict('os.environ', {'AWS_IN_CONSOLE_OPEN': 'false'}):
-            self.run_open_console('s3', 'ls')
-        self.assertEqual(self.stdout.getvalue(), SIGNIN_URL + '\n')
+            with self.assertLogs(PKG, 'DEBUG') as logs:
+                rc = self.run_open_console('s3', 'ls')
+        url = 'https://console.aws.amazon.com/s3/buckets?region=us-west-2'
+        self.assertEqual(rc, 0)
+        self.assertEqual(self.stdout.getvalue(), url + '\n')
+        self.assertEqual(self.stderr.getvalue(), '')
+        self.assertFalse(self.wrap.called)
+        self.assertFalse(self.session.get_credentials.called)
         self.assertFalse(self.open_browser.called)
+        self.assertIn(
+            'sign-in not attempted in print-only mode', '\n'.join(logs.output)
+        )
 
     def test_default_region_is_us_east_1(self):
         self.session.region = None
@@ -348,6 +361,64 @@ class TestOpenConsole(BaseOpenConsoleTest):
         self.assertFalse(self.session.get_credentials.called)
         self.assertIn('sign-in applied=False', '\n'.join(logs.output))
 
+
+class TestConsoleOpener(BaseOpenConsoleTest):
+    URL = 'https://console.aws.amazon.com/s3/buckets?region=us-west-2'
+
+    def open(self):
+        ConsoleOpener(self.session, 's3', ['ls']).open(None)
+
+    def test_opens_the_signin_url_and_prints_nothing(self):
+        self.open()
+        self.assertEqual(self.stdout.getvalue(), '')
+        self.assertEqual(self.stderr.getvalue(), '')
+        self.assertEqual(self.wrap.call_args[0][1], self.URL)
+        self.open_browser.assert_called_once_with(SIGNIN_URL)
+
+    def test_print_only_prints_console_url_and_does_not_sign_in(self):
+        with mock.patch.dict('os.environ', {'AWS_IN_CONSOLE_OPEN': 'false'}):
+            self.open()
+        self.assertEqual(self.stdout.getvalue(), '')
+        self.assertEqual(self.stderr.getvalue(), self.URL + '\n')
+        self.assertFalse(self.wrap.called)
+        self.assertFalse(self.open_browser.called)
+
+    def test_error_quoting_the_signin_url_has_the_token_hashed(self):
+        error = RuntimeError(f'cannot hand over {SIGNIN_URL}')
+        with mock.patch(
+            f'{PKG}.browser.open_beside_output', side_effect=error
+        ):
+            with self.assertLogs(PKG, 'DEBUG') as logs:
+                self.open()
+        self.assertEqual(
+            self.stderr.getvalue(),
+            f'Could not open the console (cannot hand over {SIGNIN}).\n',
+        )
+        output = '\n'.join(logs.output)
+        self.assertIn('Console: opening failed', output)
+        self.assertIn(f'RuntimeError: cannot hand over {SIGNIN}', output)
+        self.assertIn(f'SigninToken={TOKEN_HASH}', output)
+        for text in (output, self.stderr.getvalue(), self.stdout.getvalue()):
+            self.assertNotIn('secret-token', text)
+
+    def test_error_before_sign_in_is_reported_unchanged(self):
+        self.load_db.side_effect = ValueError('bad json')
+        self.open()
+        self.assertEqual(
+            self.stderr.getvalue(), 'Could not open the console (bad json).\n'
+        )
+        self.assertFalse(self.wrap.called)
+        self.assertFalse(self.open_browser.called)
+
+    def test_error_without_message_uses_its_type(self):
+        self.load_db.side_effect = ValueError()
+        self.open()
+        self.assertEqual(
+            self.stderr.getvalue(),
+            'Could not open the console (ValueError).\n',
+        )
+
+
 class TestRunAndOpen(unittest.TestCase):
     def run_and_open(self, command, remaining, rc=0):
         from awscli.customizations.open_the_console_to_this import (
@@ -385,3 +456,28 @@ class TestRunAndOpen(unittest.TestCase):
         rc, _, opener_open = self.run_and_open('s3', ['mb', 's3://x'], rc=1)
         self.assertEqual(rc, 1)
         self.assertFalse(opener_open.called)
+
+    def test_api_response_opens_after_the_command_returns(self):
+        from awscli.customizations.open_the_console_to_this import (
+            run_and_open,
+        )
+
+        parsed_args = argparse.Namespace(command='s3', open_console=True)
+        response = {'Buckets': []}
+        order = []
+
+        def command(remaining, args):
+            order.append('command')
+            shown = args.console_opener.before_display(response)
+            self.assertIs(shown, response)
+            order.append('displayed')
+            return 0
+
+        def record(captured):
+            order.append('open')
+            self.assertIs(captured, response)
+
+        with mock.patch(f'{PKG}.ConsoleOpener.open', side_effect=record):
+            rc = run_and_open(mock.Mock(), parsed_args, ['ls'], command)
+        self.assertEqual(rc, 0)
+        self.assertEqual(order, ['command', 'displayed', 'open'])

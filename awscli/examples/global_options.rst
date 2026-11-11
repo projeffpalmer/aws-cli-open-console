@@ -120,7 +120,7 @@
   
   Do not run the command. Open the AWS Management Console page that best matches it instead, signed in with the credentials the command would have used, and print the URL. With ``help`` , open the documentation instead.
   
-`--open-console` (boolean)
+``--open-console`` (boolean)
   
-  Run the command as usual, and before its output is displayed open the AWS Management Console page of the resource it acted on (for example the table that `dynamodb create-table` created, or the instances that `ec2 run-instances` launched), signed in with the credentials the command used. The output is unchanged.
+  Run the command as usual, and after it completes, open the AWS Management Console page of the resource it acted on (for example the table that ``dynamodb create-table`` created, or the instances that ``ec2 run-instances`` launched), signed in with the credentials the command used. The output is unchanged.
   

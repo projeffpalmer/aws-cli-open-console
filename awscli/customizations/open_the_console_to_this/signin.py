@@ -18,10 +18,12 @@ user session go straight to the federation endpoint (other temporary
 credentials are refused); long-term IAM user keys are first exchanged with
 STS ``GetFederationToken``.  Every failure degrades to the plain console URL
 and a one-line warning.  Nothing secret is logged or put in a message: the
-sign-in URL itself is a bearer secret and is only returned to the caller.
+sign-in URL is a bearer secret, so it is returned as a :class:`SigninUrl`,
+which shows its token hashed to everything but the browser launcher.
 """
 
 import contextlib
+import hashlib
 import json
 import logging
 from urllib.parse import quote_plus
@@ -53,6 +55,7 @@ ROLE_SESSION_PROVIDERS = frozenset(
     )
 )
 _IDENTITY_KINDS = {'root': 'root user', 'user': 'IAM user'}
+HASH_DIGITS = 16
 HTTP_TIMEOUT_SECONDS = 25
 NO_SIGNIN = 'Opening the console without signing in.'
 NO_CREDENTIALS_WARNING = f'Unable to locate credentials. {NO_SIGNIN}'
@@ -85,6 +88,63 @@ class SigninCredentials:
             f'SigninCredentials(method={self.method!r}, '
             f'temporary={bool(self.token)})'
         )
+
+
+def hashed(secret):
+    """Return the stand-in that is shown instead of ``secret``.
+
+    It is the start of the secret's SHA-256: enough to tell two secrets
+    apart in a message or a log, and of no use for signing in.
+    """
+    digest = hashlib.sha256(secret.encode('utf-8')).hexdigest()
+    return f'sha256:{digest[:HASH_DIGITS]}'
+
+
+class SigninUrl:
+    """The console login URL, whose sign-in token is a bearer secret.
+
+    ``str()``, ``repr()`` and string formatting give the URL with the token
+    hashed, so the object is safe to print, log or put in a message.  Only
+    :meth:`unhashed` gives the URL that signs in, and only the browser
+    launcher calls it.
+    """
+
+    __slots__ = ('_host', '_destination', '_token')
+
+    def __init__(self, host, destination, token):
+        self._host = host
+        self._destination = destination
+        self._token = token
+
+    def _with_token(self, token):
+        return (
+            f'https://{self._host}/federation?Action=login'
+            f'&Issuer={quote_plus(ISSUER)}'
+            f'&Destination={quote_plus(self._destination)}'
+            f'&SigninToken={token}'
+        )
+
+    def unhashed(self):
+        """Return the URL that signs in.  For launching the browser only."""
+        return self._with_token(quote_plus(self._token))
+
+    def __str__(self):
+        return self._with_token(hashed(self._token))
+
+    def __repr__(self):
+        return f'SigninUrl({str(self)!r})'
+
+    def hashed_in(self, text):
+        """Return ``text`` with the token hashed wherever it is quoted.
+
+        The token is looked for as issued and as encoded in the URL, so a
+        quoted copy of the sign-in URL comes out as ``str(self)``.
+        """
+        stand_in = hashed(self._token)
+        forms = {self._token, quote_plus(self._token)}
+        for form in sorted(forms, key=len, reverse=True):
+            text = text.replace(form, stand_in)
+        return text
 
 
 def _warning(message):
@@ -314,7 +374,7 @@ def _signin_token(session, creds, host):
 def federation_login_url(
     session, creds, destination, partition, region, account_resolver
 ):
-    """Return the console login URL for ``destination``.
+    """Return the console login URL for ``destination`` as a ``SigninUrl``.
 
     Raises ``SigninError`` on any failure.  ``SessionDuration`` is never
     sent: it is not allowed for GetFederationToken or role-chained
@@ -330,16 +390,15 @@ def federation_login_url(
         LOG.debug('Long-term keys: calling STS GetFederationToken first')
         creds = _federation_token(session, creds, region, account_resolver)
     token = _signin_token(session, creds, host)
-    return (
-        f'https://{host}/federation?Action=login'
-        f'&Issuer={quote_plus(ISSUER)}'
-        f'&Destination={quote_plus(destination)}'
-        f'&SigninToken={quote_plus(token)}'
-    )
+    return SigninUrl(host, destination, token)
 
 
 def wrap(session, destination, partition, region, account_resolver):
-    """Return ``(url_to_open, warning or None)``."""
+    """Return ``(url_to_open, warning or None)``.
+
+    The URL to open is a ``SigninUrl`` when sign-in was applied, otherwise
+    it is ``destination``.
+    """
     creds, warning = resolve_credentials(session)
     if creds is None:
         LOG.debug('Console sign-in not applied: no credentials')

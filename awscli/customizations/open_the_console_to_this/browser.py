@@ -12,10 +12,11 @@
 # language governing permissions and limitations under the License.
 """Print the console URL and open the browser (contract section 4).
 
-stdout gets exactly one line: the console destination URL, while the
+stdout gets exactly one line, the console destination URL, while the
 browser gets the URL to open (the sign-in URL when sign-in was applied).
-In print-only mode the browser is not opened and the URL to open is the
-printed line, so it can be pasted somewhere else.
+The sign-in URL is a bearer secret: it is unhashed only to launch the
+browser and is never printed.  So, unlike in the contract, print-only mode
+prints the console URL as well, and nothing is signed in.
 """
 
 import logging
@@ -23,6 +24,7 @@ import os
 import sys
 import webbrowser
 
+from awscli.customizations.open_the_console_to_this.signin import SigninUrl
 from awscli.customizations.sso.utils import original_ld_library_path
 from awscli.customizations.utils import uni_print
 
@@ -72,10 +74,9 @@ def print_only(session):
 
 def deliver(console_url, open_url, session):
     """Print one line and open ``open_url`` unless print-only; return 0."""
-    if print_only(session):
-        uni_print(open_url + '\n')
-        return 0
     uni_print(console_url + '\n')
+    if print_only(session):
+        return 0
     sys.stdout.flush()
     reason = _open_browser(open_url)
     if reason is not None:
@@ -90,12 +91,12 @@ def deliver(console_url, open_url, session):
 def open_beside_output(console_url, open_url, session):
     """Open ``open_url`` for ``--open-console``; stdout stays the command's.
 
-    In print-only mode the URL to open goes to stderr instead. A browser
-    that cannot be opened gives a warning naming ``console_url`` (never the
-    sign-in URL, a bearer secret).
+    In print-only mode ``console_url`` goes to stderr instead. A browser
+    that cannot be opened gives a warning naming ``console_url``. Neither
+    shows the sign-in token, except hashed.
     """
     if print_only(session):
-        uni_print(open_url + '\n', sys.stderr)
+        uni_print(console_url + '\n', sys.stderr)
         return
     reason = _open_browser(open_url)
     if reason is not None:
@@ -107,16 +108,26 @@ def open_beside_output(console_url, open_url, session):
 
 
 def _open_browser(open_url):
-    """Open ``open_url`` in a new tab; return None or the failure reason."""
+    """Open ``open_url`` in a new tab; return None or the failure reason.
+
+    A sign-in URL is unhashed here and nowhere else. Every exception is
+    turned into the reason, with the sign-in token hashed in it, so that
+    none leaves this function quoting the token.
+    """
+    is_signin_url = isinstance(open_url, SigninUrl)
     try:
         # ``webbrowser`` returns False (it does not raise) when it finds no
         # runnable browser, so the result is checked here.
         with original_ld_library_path():
-            opened = webbrowser.open_new_tab(open_url)
-    except (webbrowser.Error, OSError) as exc:
-        # The URL can be a sign-in bearer secret: keep it out of the text.
+            opened = webbrowser.open_new_tab(
+                open_url.unhashed() if is_signin_url else open_url
+            )
+    except Exception as exc:
         LOG.debug('Opening the browser failed: %s', type(exc).__name__)
-        return (str(exc) or type(exc).__name__).replace(open_url, '<url>')
+        reason = str(exc) or type(exc).__name__
+        if is_signin_url:
+            return open_url.hashed_in(reason)
+        return reason.replace(open_url, '<url>')
     if opened is False:
         LOG.debug('Opening the browser failed: no runnable browser')
         return NO_BROWSER_REASON

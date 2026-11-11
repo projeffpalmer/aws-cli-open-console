@@ -10,8 +10,10 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import hashlib
 import json
 import logging
+import os
 from urllib.parse import parse_qs, quote_plus, urlsplit
 
 from botocore.exceptions import (
@@ -244,8 +246,89 @@ class TestResolveCredentials(unittest.TestCase):
             self.assertNotIn(secret, str(frozen))
 
 
+class TestSigninUrl(unittest.TestCase):
+    def setUp(self):
+        self.url = signin.SigninUrl(HOSTS['aws'], DESTINATION, SIGNIN_TOKEN)
+        self.token_hash = signin.hashed(SIGNIN_TOKEN)
+
+    def assert_token_hashed(self, text):
+        for secret in secrets_of():
+            self.assertNotIn(secret, text)
+        self.assertIn(f'SigninToken={self.token_hash}', text)
+
+    def test_hash_is_the_start_of_the_sha256(self):
+        digest = hashlib.sha256(SIGNIN_TOKEN.encode('utf-8')).hexdigest()
+        self.assertEqual(self.token_hash, f'sha256:{digest[:16]}')
+        self.assertNotEqual(signin.hashed('another token'), self.token_hash)
+
+    def test_unhashed_is_the_url_that_signs_in(self):
+        url = self.url.unhashed()
+        self.assertTrue(
+            url.startswith('https://signin.aws.amazon.com/federation?')
+        )
+        self.assertEqual(
+            query_of(url),
+            {
+                'Action': ['login'],
+                'Issuer': [signin.ISSUER],
+                'Destination': [DESTINATION],
+                'SigninToken': [SIGNIN_TOKEN],
+            },
+        )
+
+    def test_printed_and_formatted_forms_have_the_token_hashed(self):
+        forms = {
+            'str': str(self.url),
+            'repr': repr(self.url),
+            'f-string': f'{self.url}',
+        }
+        for name, text in forms.items():
+            with self.subTest(form=name):
+                self.assert_token_hashed(text)
+
+    def test_str_is_the_login_url_with_only_the_token_replaced(self):
+        self.assertEqual(
+            str(self.url),
+            self.url.unhashed().replace(
+                quote_plus(SIGNIN_TOKEN), self.token_hash
+            ),
+        )
+
+    def test_logging_the_url_logs_the_hash(self):
+        with self.assertLogs('signin-url-test', 'DEBUG') as logs:
+            logging.getLogger('signin-url-test').debug('open %s', self.url)
+        self.assert_token_hashed('\n'.join(logs.output))
+
+    def test_hashed_in_hashes_every_quoted_form_of_the_token(self):
+        text = (
+            f'cannot run {self.url.unhashed()}; token {SIGNIN_TOKEN}; '
+            f'encoded {quote_plus(SIGNIN_TOKEN)}'
+        )
+        self.assertEqual(
+            self.url.hashed_in(text),
+            f'cannot run {self.url}; token {self.token_hash}; '
+            f'encoded {self.token_hash}',
+        )
+
+    def test_hashed_in_leaves_other_text_alone(self):
+        self.assertEqual(self.url.hashed_in('no browser'), 'no browser')
+
+    def test_only_the_browser_launcher_unhashes(self):
+        package = os.path.dirname(signin.__file__)
+        calls = {}
+        for name in sorted(os.listdir(package)):
+            if not name.endswith('.py'):
+                continue
+            with open(os.path.join(package, name), encoding='utf-8') as f:
+                count = f.read().count('.unhashed(')
+            if count:
+                calls[name] = count
+        self.assertEqual(calls, {'browser.py': 1})
+
+
 class TestFederationLoginUrl(SigninTestCase):
     def login_url(self, session, keys=TEMP_KEYS, partition='aws', **kwargs):
+        """Return the URL that the browser is given."""
         frozen, _ = signin.resolve_credentials(session)
         return signin.federation_login_url(
             session,
@@ -256,7 +339,7 @@ class TestFederationLoginUrl(SigninTestCase):
             kwargs.get(
                 'account_resolver', AccountResolver(session, 'us-west-2')
             ),
-        )
+        ).unhashed()
 
     def test_role_session_providers_skip_sts(self):
         for method in sorted(signin.ROLE_SESSION_PROVIDERS):
@@ -628,10 +711,15 @@ class TestWrap(SigninTestCase):
         session, _ = make_session(TEMP_KEYS)
         url, warning = self.wrap(session, partition='aws-cn')
         self.assertIsNone(warning)
+        self.assertIsInstance(url, signin.SigninUrl)
+        login_url = url.unhashed()
         self.assertTrue(
-            url.startswith('https://signin.amazonaws.cn/federation?')
+            login_url.startswith('https://signin.amazonaws.cn/federation?')
         )
-        self.assertEqual(query_of(url)['Destination'], [DESTINATION])
+        self.assertEqual(query_of(login_url)['Destination'], [DESTINATION])
+        self.assertEqual(query_of(login_url)['SigninToken'], [SIGNIN_TOKEN])
+        for secret in secrets_of():
+            self.assertNotIn(secret, str(url))
 
 
 class TestNoSecretsInLogs(SigninTestCase):
@@ -670,7 +758,7 @@ class TestNoSecretsInLogs(SigninTestCase):
             AccountResolver(session, 'us-west-2'),
         )
         self.assertIsNone(warning)
-        self.assertIn('SigninToken=', url)
+        self.assertIsInstance(url, signin.SigninUrl)
         return handler
 
     def test_temporary_credentials(self):

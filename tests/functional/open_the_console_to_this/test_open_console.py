@@ -12,25 +12,19 @@
 # language governing permissions and limitations under the License.
 import json
 import sys
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import quote_plus
 
 from awscli.customizations.open_the_console_to_this import signin
-from awscli.testutils import BaseAWSCommandParamsTest, mock
+from awscli.testutils import mock
+from tests.functional.open_the_console_to_this.support import (
+    ACCOUNT,
+    FEDERATION_RESPONSE,
+    LOGIN_PREFIX,
+    PKG,
+    SIGNIN_TOKEN,
+    ConsoleCommandTest,
+)
 
-PKG = 'awscli.customizations.open_the_console_to_this'
-ACCOUNT = '123456789012'
-LOGIN_PREFIX = 'https://signin.aws.amazon.com/federation?Action=login&'
-FEDERATION_RESPONSE = {
-    'Credentials': {
-        'AccessKeyId': 'ASIAFEDERATED0000001',
-        'SecretAccessKey': 'federated-secret',
-        'SessionToken': 'federated-token',
-    },
-    'FederatedUser': {
-        'Arn': f'arn:aws:sts::{ACCOUNT}:federated-user/{signin.ISSUER}',
-        'FederatedUserId': f'{ACCOUNT}:{signin.ISSUER}',
-    },
-}
 CREATE_TABLE = (
     'dynamodb create-table --table-name MusicCollection '
     '--attribute-definitions AttributeName=Artist,AttributeType=S '
@@ -55,39 +49,23 @@ EC2_HOME = (
 )
 
 
-class TestOpenConsole(BaseAWSCommandParamsTest):
+class TestOpenConsole(ConsoleCommandTest):
     def setUp(self):
-        super().setUp()
-        self.environ['DISPLAY'] = ':0'
-        self.environ.pop('AWS_IN_CONSOLE_OPEN', None)
         self.stdout_when_opened = []
+        super().setUp()
+
+    def _patch_browser(self):
         open_patcher = mock.patch(
             'webbrowser.open_new_tab', side_effect=self.record_open
         )
         self.open_browser = open_patcher.start()
         self.addCleanup(open_patcher.stop)
-        http_patcher = mock.patch(
-            f'{PKG}.signin._http_get',
-            return_value=(200, '{"SigninToken": "tok"}'),
-        )
-        self.http_get = http_patcher.start()
-        self.addCleanup(http_patcher.stop)
 
     def record_open(self, url):
         self.stdout_when_opened.append(sys.stdout.getvalue())
         return True
 
-    def operation_names(self):
-        return [model.name for model, _ in self.operations_called]
-
-    def assert_signed_in(self, destination):
-        self.open_browser.assert_called_once()
-        url = self.open_browser.call_args[0][0]
-        self.assertTrue(url.startswith(LOGIN_PREFIX), url)
-        query = parse_qs(urlsplit(url).query)
-        self.assertEqual(query['Destination'], [destination])
-
-    def test_create_table_opens_the_new_table_before_output(self):
+    def test_create_table_opens_the_new_table_after_the_command(self):
         self.parsed_responses = [CREATE_TABLE_RESPONSE, FEDERATION_RESPONSE]
         stdout, stderr, rc = self.run_cmd(CREATE_TABLE)
         self.assertEqual(rc, 0)
@@ -100,7 +78,7 @@ class TestOpenConsole(BaseAWSCommandParamsTest):
             self.operation_names(), ['CreateTable', 'GetFederationToken']
         )
         self.assert_signed_in(TABLE_PAGE)
-        self.assertEqual(self.stdout_when_opened, [''])
+        self.assertEqual(self.stdout_when_opened, [stdout])
 
     def test_output_is_the_same_as_without_the_flag(self):
         self.parsed_responses = [CREATE_TABLE_RESPONSE, FEDERATION_RESPONSE]
@@ -172,10 +150,11 @@ class TestOpenConsole(BaseAWSCommandParamsTest):
         self.assert_signed_in(
             EC2_HOME + '#InstanceDetails:instanceId=i-0123456789abcdef0'
         )
+        self.assertEqual(self.stdout_when_opened, [stdout])
 
     def test_custom_command_opens_from_its_arguments(self):
         self.parsed_responses = [{}, FEDERATION_RESPONSE]
-        self.run_cmd('s3 mb s3://photos --open-console')
+        stdout, _, _ = self.run_cmd('s3 mb s3://photos --open-console')
         self.assertEqual(
             self.operation_names(), ['CreateBucket', 'GetFederationToken']
         )
@@ -183,6 +162,8 @@ class TestOpenConsole(BaseAWSCommandParamsTest):
             'https://console.aws.amazon.com/s3/buckets/photos'
             '?region=us-east-1'
         )
+        self.assertIn('make_bucket: photos', stdout)
+        self.assertEqual(self.stdout_when_opened, [stdout])
 
     def test_failed_command_opens_nothing(self):
         self.parsed_responses = [
@@ -193,17 +174,45 @@ class TestOpenConsole(BaseAWSCommandParamsTest):
         self.assertFalse(self.open_browser.called)
         self.assertFalse(self.http_get.called)
 
-    def test_print_only_puts_the_url_on_stderr(self):
+    def test_print_only_puts_the_console_url_on_stderr(self):
         self.environ['AWS_IN_CONSOLE_OPEN'] = 'false'
-        self.parsed_responses = [CREATE_TABLE_RESPONSE, FEDERATION_RESPONSE]
+        self.parsed_responses = [CREATE_TABLE_RESPONSE]
         stdout, stderr, _ = self.run_cmd(CREATE_TABLE)
         self.assertFalse(self.open_browser.called)
         self.assertEqual(
             json.loads(stdout)['TableDescription']['TableName'],
             'MusicCollection',
         )
-        self.assertTrue(stderr.startswith(LOGIN_PREFIX), stderr)
-        self.assertEqual(stderr.count('\n'), 1)
+        self.assertEqual(stderr, TABLE_PAGE + '\n')
+        self.assertEqual(self.operation_names(), ['CreateTable'])
+        self.assertFalse(self.http_get.called)
+
+    def test_browser_error_shows_the_signin_token_hashed(self):
+        self.http_get.return_value = (
+            200,
+            json.dumps({'SigninToken': SIGNIN_TOKEN}),
+        )
+
+        def fail(url):
+            raise RuntimeError(f'no handler for {url}')
+
+        self.open_browser.side_effect = fail
+        self.parsed_responses = [CREATE_TABLE_RESPONSE, FEDERATION_RESPONSE]
+        stdout, stderr, rc = self.run_cmd(CREATE_TABLE)
+        self.assertEqual(rc, 0)
+        self.assertIn('MusicCollection', stdout)
+        hashed_url = (
+            f'{LOGIN_PREFIX}Issuer={signin.ISSUER}'
+            f'&Destination={quote_plus(TABLE_PAGE)}'
+            f'&SigninToken={signin.hashed(SIGNIN_TOKEN)}'
+        )
+        self.assertEqual(
+            stderr,
+            f'Could not open a browser (no handler for {hashed_url}); the '
+            f'console page is {TABLE_PAGE}\n',
+        )
+        for secret in (SIGNIN_TOKEN, quote_plus(SIGNIN_TOKEN)):
+            self.assertNotIn(secret, stdout + stderr)
 
     def test_console_link_wins_and_bypasses_the_command(self):
         self.parsed_responses = [FEDERATION_RESPONSE]

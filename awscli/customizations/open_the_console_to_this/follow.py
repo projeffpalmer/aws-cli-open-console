@@ -65,14 +65,12 @@ def _from_resource(root, path_tokens, node, rest, response, ctx):
         scalars=node.get('scalars', ()),
     )
     candidates = view_candidates(node, parent)
+    values_by_name = {}
     for candidate in candidates:
-        arg_tokens = _arg_tokens(candidate, response, typed)
+        arg_tokens = _arg_tokens(candidate, response, typed, values_by_name)
         if not arg_tokens:
             continue
-        cand_path = candidate['path'].split('.')[1:]
-        decision = resolver.resolve(
-            root, cand_path[0], cand_path[1:] + arg_tokens, ctx
-        )
+        decision = _resolve_candidate(root, candidate, arg_tokens, ctx)
         if decision.params:
             LOG.debug(
                 'Console: %s follows %s with %r',
@@ -84,8 +82,7 @@ def _from_resource(root, path_tokens, node, rest, response, ctx):
     if _verb(node) == 'create' and candidates:
         # Nothing identified the new resource: its list page, not the
         # create wizard of a resource that now exists.
-        cand_path = candidates[0]['path'].split('.')[1:]
-        return resolver.resolve(root, cand_path[0], cand_path[1:], ctx)
+        return _resolve_candidate(root, candidates[0], [], ctx)
     return None
 
 
@@ -155,19 +152,27 @@ def _arg_names(node):
         arg = (spec or {}).get('arg') or name
         if arg not in positional:
             names.append(arg.lstrip('-'))
-    seen = set()
-    return [n for n in names if not (n in seen or seen.add(n))]
+    return list(dict.fromkeys(names))
 
 
-def _arg_tokens(node, response, typed):
+def _resolve_candidate(root, candidate, extra_tokens, ctx):
+    parts = candidate['path'].split('.')[1:]
+    return resolver.resolve(root, parts[0], parts[1:] + extra_tokens, ctx)
+
+
+def _arg_tokens(node, response, typed, values_by_name):
     """Arguments for ``node``: response values, else typed ones.
 
     Typed positionals (the ``s3://bucket`` of ``s3 mb``) are passed after
-    ``--`` to a node that takes positionals.
+    ``--`` to a node that takes positionals. ``values_by_name`` caches
+    response lookups for one ``_from_resource`` call; sibling candidates
+    mostly ask for the same names.
     """
     tokens = []
     for name in _arg_names(node):
-        values = find_values(response, name) or typed.options.get(name)
+        if name not in values_by_name:
+            values_by_name[name] = find_values(response, name)
+        values = values_by_name[name] or typed.options.get(name)
         values = [v for v in values or () if not v.startswith('--')]
         if values:
             tokens.append('--' + name)
@@ -219,8 +224,7 @@ def _search(response, key):
                 elif isinstance(value, (dict, list)):
                     deeper.append(value)
         if found:
-            seen = set()
-            return [v for v in found if not (v in seen or seen.add(v))]
+            return list(dict.fromkeys(found))
         level = deeper
     return []
 

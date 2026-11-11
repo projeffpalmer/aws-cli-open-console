@@ -10,17 +10,8 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-"""Render the curated-URL spot-check page.
 
-Writes ``review/spot-check.html``: a static page, grouped by tier-1
-command, with one row per node whose ``url.source`` is ``curated``.  Each
-row links the sample URL: the URL the first resolver case for that node
-gives (``tests/unit/customizations/open_the_console_to_this/cases/``), else
-``url.best`` rendered with the sample values of :mod:`console_db.verify`.
-A signed-in reviewer opens the links by hand, because single-page consoles
-cannot be checked unauthenticated.  No external assets, no JavaScript, and
-the output is byte-identical for the same database and cases.
-"""
+"""Render the curated-URL spot-check page."""
 
 import argparse
 import collections

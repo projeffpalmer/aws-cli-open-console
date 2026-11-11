@@ -10,17 +10,24 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import json
 import os
 import shutil
 import tempfile
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import quote_plus
 
 from awscli.clidriver import AWSCLIEntryPoint, create_clidriver
 from awscli.customizations.open_the_console_to_this import db, docs, signin
-from awscli.testutils import BaseAWSCommandParamsTest, mock
+from awscli.testutils import mock
+from tests.functional.open_the_console_to_this.support import (
+    ACCOUNT,
+    FEDERATION_RESPONSE,
+    LOGIN_PREFIX,
+    PKG,
+    SIGNIN_TOKEN,
+    ConsoleCommandTest,
+)
 
-PKG = 'awscli.customizations.open_the_console_to_this'
-ACCOUNT = '123456789012'
 S3_BUCKETS_US_EAST_1 = (
     'https://console.aws.amazon.com/s3/buckets?region=us-east-1'
 )
@@ -28,41 +35,17 @@ EC2_INSTANCE_US_WEST_2 = (
     'https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2'
     '#InstanceDetails:instanceId=i-0123456789abcdef0'
 )
-LOGIN_PREFIX = 'https://signin.aws.amazon.com/federation?Action=login&'
 NO_CREDENTIALS_WARNING = (
     'Unable to locate credentials. Opening the console without signing in.\n'
 )
-FEDERATION_RESPONSE = {
-    'Credentials': {
-        'AccessKeyId': 'ASIAFEDERATED0000001',
-        'SecretAccessKey': 'federated-secret',
-        'SessionToken': 'federated-token',
-    },
-    'FederatedUser': {
-        'Arn': f'arn:aws:sts::{ACCOUNT}:federated-user/{signin.ISSUER}',
-        'FederatedUserId': f'{ACCOUNT}:{signin.ISSUER}',
-    },
-}
 
 
-class TestInConsole(BaseAWSCommandParamsTest):
+class TestInConsole(ConsoleCommandTest):
     def setUp(self):
         super().setUp()
-        # A display, so the browser is opened on Linux too.
-        self.environ['DISPLAY'] = ':0'
-        self.environ.pop('AWS_IN_CONSOLE_OPEN', None)
         self.parsed_response = FEDERATION_RESPONSE
         self.tempdir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tempdir)
-        open_patcher = mock.patch('webbrowser.open_new_tab', return_value=True)
-        self.open_browser = open_patcher.start()
-        self.addCleanup(open_patcher.stop)
-        http_patcher = mock.patch(
-            f'{PKG}.signin._http_get',
-            return_value=(200, '{"SigninToken": "tok"}'),
-        )
-        self.http_get = http_patcher.start()
-        self.addCleanup(http_patcher.stop)
 
     def write_file(self, name, contents=''):
         path = os.path.join(self.tempdir, name)
@@ -76,18 +59,8 @@ class TestInConsole(BaseAWSCommandParamsTest):
         self.driver = create_clidriver()
         self.entry_point = AWSCLIEntryPoint(self.driver)
 
-    def operation_names(self):
-        return [model.name for model, _ in self.operations_called]
-
-    def opened_url(self):
-        self.open_browser.assert_called_once()
-        return self.open_browser.call_args[0][0]
-
     def assert_signed_in(self, destination):
-        url = self.opened_url()
-        self.assertTrue(url.startswith(LOGIN_PREFIX), url)
-        query = parse_qs(urlsplit(url).query)
-        self.assertEqual(query['Destination'], [destination])
+        query = super().assert_signed_in(destination)
         self.assertEqual(query['SigninToken'], ['tok'])
         self.assertEqual(query['Issuer'], [signin.ISSUER])
         self.http_get.assert_called_once()
@@ -227,21 +200,48 @@ class TestInConsole(BaseAWSCommandParamsTest):
         self.assertEqual(stderr, '')
         self.assert_signed_in(url)
 
-    def test_print_only_env_var_prints_signin_url(self):
+    def test_print_only_env_var_prints_console_url_without_signing_in(self):
         self.environ['AWS_IN_CONSOLE_OPEN'] = 'false'
-        stdout, stderr, _ = self.run_cmd('s3 ls --console-link')
+        stdout, stderr, rc = self.run_cmd('s3 ls --console-link')
+        self.assertEqual(rc, 0)
         self.assertFalse(self.open_browser.called)
         self.assertEqual(stderr, '')
-        self.assertTrue(stdout.startswith(LOGIN_PREFIX), stdout)
-        self.assertEqual(stdout.count('\n'), 1)
-        query = parse_qs(urlsplit(stdout.strip()).query)
-        self.assertEqual(query['Destination'], [S3_BUCKETS_US_EAST_1])
+        self.assertEqual(stdout, S3_BUCKETS_US_EAST_1 + '\n')
+        self.assertEqual(self.operations_called, [])
+        self.assertFalse(self.http_get.called)
 
     def test_print_only_config_setting(self):
         self.use_config('[default]\nin_console_open = off\n')
         stdout, _, _ = self.run_cmd('s3 ls --console-link')
         self.assertFalse(self.open_browser.called)
-        self.assertTrue(stdout.startswith(LOGIN_PREFIX), stdout)
+        self.assertEqual(stdout, S3_BUCKETS_US_EAST_1 + '\n')
+        self.assertFalse(self.http_get.called)
+
+    def test_browser_error_shows_the_signin_token_hashed(self):
+        self.http_get.return_value = (
+            200,
+            json.dumps({'SigninToken': SIGNIN_TOKEN}),
+        )
+
+        def fail(url):
+            raise RuntimeError(f'no handler for {url}')
+
+        self.open_browser.side_effect = fail
+        stdout, stderr, rc = self.run_cmd('s3 ls --console-link')
+        self.assertEqual(rc, 0)
+        self.assertEqual(stdout, S3_BUCKETS_US_EAST_1 + '\n')
+        hashed_url = (
+            f'{LOGIN_PREFIX}Issuer={signin.ISSUER}'
+            f'&Destination={quote_plus(S3_BUCKETS_US_EAST_1)}'
+            f'&SigninToken={signin.hashed(SIGNIN_TOKEN)}'
+        )
+        self.assertEqual(
+            stderr,
+            f'Could not open a browser (no handler for {hashed_url}); the '
+            'URL is printed above.\n',
+        )
+        for secret in (SIGNIN_TOKEN, quote_plus(SIGNIN_TOKEN)):
+            self.assertNotIn(secret, stdout + stderr)
 
     def test_region_from_profile(self):
         self.environ.pop('AWS_DEFAULT_REGION', None)

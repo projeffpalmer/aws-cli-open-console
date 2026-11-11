@@ -25,8 +25,8 @@ curated for common services and falling back to the service home page. Add
 ``help`` (for example ``aws s3 ls help --console-link``) to open the
 documentation instead.
 
-``--open-console`` runs the command as usual and, before its output is
-displayed, opens the console page of the resource it acted on, such as the
+``--open-console`` runs the command as usual and, after it completes,
+opens the console page of the resource it acted on, such as the
 table that ``aws dynamodb create-table`` created or the instance that
 ``aws ec2 run-instances`` launched::
 

@@ -19,6 +19,7 @@ documentation URL using the database in
 
 import logging
 import sys
+import traceback
 
 LOG = logging.getLogger(__name__)
 
@@ -69,12 +70,12 @@ def open_console(session, parsed_args, remaining):
         )
         return browser.deliver(url, url, session)
 
-    region, partition = _location(session, urls)
-    account_resolver = AccountResolver(session, region)
-    ctx = resolver.Context(region, partition, account_id=account_resolver.get)
+    region, partition, account_resolver, ctx = _console_context(
+        session, urls, resolver, AccountResolver
+    )
     decision = resolver.resolve(root, command, remaining, ctx)
     open_url = _sign_in(
-        session, decision, partition, region, account_resolver, signin
+        session, decision, partition, region, account_resolver, signin, browser
     )
     return browser.deliver(decision.url, open_url, session)
 
@@ -83,12 +84,13 @@ def run_and_open(session, parsed_args, remaining, command_callable):
     """Run the command, then open the page of the resource it acted on.
 
     Called from ``CLIDriver.main()`` when ``--open-console`` is given. The
-    command runs exactly as without the flag and its return code is
-    returned. For an API operation ``CLIOperationCaller.invoke`` hands the
-    response to the :class:`ConsoleOpener` set on ``parsed_args`` before
-    the response is displayed; any other command that succeeds opens the
-    page its typed arguments resolve to once it has finished. ``help``
-    only shows help.
+    command runs exactly as without the flag, including displaying its
+    output, and its return code is returned. The console opens only after
+    that command has completed successfully. For an API operation
+    ``CLIOperationCaller.invoke`` hands the response to the
+    :class:`ConsoleOpener` so a paginated response is fetched once and the
+    page can be chosen from it; any other successful command opens the page
+    its typed arguments resolve to. ``help`` only shows help.
     """
     from awscli.customizations.open_the_console_to_this import args, db
 
@@ -109,8 +111,8 @@ def run_and_open(session, parsed_args, remaining, command_callable):
     opener = ConsoleOpener(session, command, remaining)
     parsed_args.console_opener = opener
     rc = command_callable(remaining, parsed_args)
-    if rc in (0, None) and not opener.done:
-        opener.open(None)
+    if rc in (0, None):
+        opener.open(opener.response_to_open())
     return rc
 
 
@@ -121,41 +123,62 @@ class ConsoleOpener:
         self._session = session
         self._command = command
         self._remaining = list(remaining)
+        self._open_url = None
+        self._response = None
+        self._has_response = False
         self.done = False
 
     def before_display(self, response):
-        """Open the page for ``response``; return what to display.
+        """Remember ``response`` and return what to display.
 
         A paginated response is fetched once here and replayed to the
         formatter, so no page is requested twice. Errors fetching pages
-        are the command's own and propagate; console errors only warn.
+        are the command's own and propagate. The browser is not opened
+        here; :meth:`open` runs after the command completes.
         """
-        if self.done:
+        if self._has_response:
             return response
         from awscli.formatter import is_response_paginated
 
         if is_response_paginated(response):
             pages = [_page(page) for page in response]
-            replayed = _replay(response, pages)
-            self.open(pages)
-            return replayed
-        self.open(response)
+            self._response = pages
+            self._has_response = True
+            return _replay(response, pages)
+        self._response = response
+        self._has_response = True
         return response
+
+    def response_to_open(self):
+        """The captured API response, or None when there was none."""
+        return self._response
 
     def open(self, response):
         """Resolve, sign in and open; never raises."""
+        if self.done:
+            return
         self.done = True
         from awscli.customizations.utils import uni_print
 
         try:
             self._open(response)
         except Exception as exc:
-            LOG.debug('Console: opening failed', exc_info=True)
-            uni_print(
-                f'Could not open the console ({exc or type(exc).__name__}).'
-                '\n',
-                sys.stderr,
+            LOG.debug(
+                'Console: opening failed\n%s',
+                self._token_hashed(traceback.format_exc()),
             )
+            reason = self._token_hashed(str(exc) or type(exc).__name__)
+            uni_print(f'Could not open the console ({reason}).\n', sys.stderr)
+
+    def _token_hashed(self, text):
+        """Return ``text`` with the sign-in token, if one was issued, hashed.
+
+        The error could quote the sign-in URL, and its text goes to stderr
+        and to the debug log.
+        """
+        if self._open_url is None or isinstance(self._open_url, str):
+            return text
+        return self._open_url.hashed_in(text)
 
     def _open(self, response):
         from awscli.customizations.open_the_console_to_this import (
@@ -172,18 +195,22 @@ class ConsoleOpener:
 
         session = self._session
         root = db.load_db()['root']
-        region, partition = _location(session, urls)
-        account_resolver = AccountResolver(session, region)
-        ctx = resolver.Context(
-            region, partition, account_id=account_resolver.get
+        region, partition, account_resolver, ctx = _console_context(
+            session, urls, resolver, AccountResolver
         )
         decision = follow.resolve_after_run(
             root, self._command, self._remaining, response, ctx
         )
-        open_url = _sign_in(
-            session, decision, partition, region, account_resolver, signin
+        self._open_url = _sign_in(
+            session,
+            decision,
+            partition,
+            region,
+            account_resolver,
+            signin,
+            browser,
         )
-        browser.open_beside_output(decision.url, open_url, session)
+        browser.open_beside_output(decision.url, self._open_url, session)
 
 
 def _page(page):
@@ -216,6 +243,13 @@ def _replay_class(base):
     return _REPLAY_CLASSES[base]
 
 
+def _console_context(session, urls, resolver, account_resolver_cls):
+    region, partition = _location(session, urls)
+    account_resolver = account_resolver_cls(session, region)
+    ctx = resolver.Context(region, partition, account_id=account_resolver.get)
+    return region, partition, account_resolver, ctx
+
+
 def _location(session, urls):
     region = session.get_config_variable('region')
     if not region:
@@ -224,8 +258,14 @@ def _location(session, urls):
     return region, urls.partition_for_region(session, region)
 
 
-def _sign_in(session, decision, partition, region, account_resolver, signin):
-    """Return the URL to open; a sign-in warning goes to stderr."""
+def _sign_in(
+    session, decision, partition, region, account_resolver, signin, browser
+):
+    """Return the URL to open; a sign-in warning goes to stderr.
+
+    Print-only mode opens nothing, so nothing is signed in and the console
+    URL is returned: a sign-in URL is only made for a browser to open.
+    """
     from awscli.customizations.utils import uni_print
 
     LOG.debug(
@@ -235,6 +275,9 @@ def _sign_in(session, decision, partition, region, account_resolver, signin):
         decision.verb,
         decision.params,
     )
+    if browser.print_only(session):
+        LOG.debug('Console: sign-in not attempted in print-only mode')
+        return decision.url
     open_url, warning = signin.wrap(
         session, decision.url, partition, region, account_resolver
     )

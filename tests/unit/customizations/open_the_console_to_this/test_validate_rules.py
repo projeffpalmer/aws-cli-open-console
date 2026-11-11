@@ -10,13 +10,6 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-"""Verdict rules of ``classify_response`` (contract section 6, rule 3).
-
-The checker lives in ``scripts/console_db/validate.py`` (build time only).
-The function is pure, so nothing here touches the network.  The
-trailing-slash examples are the live answers recorded in
-``scripts/console_db/review/verify-report.md`` (2026-11-04).
-"""
 
 import os
 import sys
