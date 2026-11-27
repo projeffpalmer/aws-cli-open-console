@@ -18,3 +18,5 @@
 [--no-cli-auto-prompt]
 [--cli-error-format <value>]
 [--help]
+[--console-link]
+[--open-console]

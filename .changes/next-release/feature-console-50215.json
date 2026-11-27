@@ -1,0 +1,5 @@
+{
+  "type": "feature",
+  "category": "console",
+  "description": "Add a ``--console-link`` global option that opens the AWS Management Console page matching a command, signed in with the credentials the command would have used, instead of running the command."
+}

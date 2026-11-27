@@ -1,0 +1,5 @@
+{
+  "type": "feature",
+  "category": "console",
+  "description": "Add a ``--open-console`` global option that runs the command and then opens the AWS Management Console page of the resource it acted on, signed in with the credentials the command used."
+}
