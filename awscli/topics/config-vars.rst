@@ -85,6 +85,8 @@ cli_pager            --no-cli-pager cli_pager             AWS_PAGER             
 -------------------- -------------- --------------------- --------------------- --------------------------------
 cli_error_format     --cli-error-   cli_error_format      AWS_CLI_ERROR_FORMAT  Format for error output
                      format
+-------------------- -------------- --------------------- --------------------- --------------------------------
+cli_console_open     N/A            cli_console_open      AWS_CLI_CONSOLE_OPEN  Open a browser for console pages
 ==================== ============== ===================== ===================== ================================
 
 The third column, Config Entry, is the value you would specify in the AWS CLI
@@ -145,6 +147,10 @@ parameter validation enabled.
 
 The ``max_attempts`` and ``retry_mode`` are explained in the
 "Retry Configuration" section below.
+
+``cli_console_open`` controls whether the ``--console-link`` and
+``--open-console`` options open a web browser. Set it to ``false`` to only
+print the console URL. See ``aws help console-pages`` for more details.
 
 When you specify a profile, either using ``--profile profile-name`` or by
 setting a value for the ``AWS_PROFILE`` environment variable, profile

@@ -349,6 +349,14 @@ For more information on the expression language used for the ``--query``
 argument, you can read the
 `JMESPath Tutorial <http://jmespath.org/tutorial.html>`__.
 
+You can use the ``--console-link`` option to open the corresponding
+AWS Management Console page. For example, ``aws s3 mb --console-link``
+opens the AWS Management Console page for S3 bucket creation.
+You can also use the ``--open-console`` option to open the AWS Management
+Console page after the command completes. For example,
+``aws s3 mb s3://amzn-s3-demo-bucket --open-console`` creates the S3
+bucket, then opens the bucket info page for the newly created bucket.
+
 ^^^^^^^^
 Examples
 ^^^^^^^^
