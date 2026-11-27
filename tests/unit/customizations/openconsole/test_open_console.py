@@ -74,14 +74,16 @@ class BaseOpenConsoleTest(unittest.TestCase):
         self.open_browser = open_patcher.start()
         self.addCleanup(open_patcher.stop)
 
-    def run_open_console(self, command, *remaining):
-        parsed_args = argparse.Namespace(command=command, console_link=True)
+    def run_open_console(self, command, *remaining, help_flag=False):
+        parsed_args = argparse.Namespace(
+            command=command, console_link=True, help=help_flag
+        )
         return open_console(self.session, parsed_args, list(remaining))
 
 
 class TestHelp(BaseOpenConsoleTest):
-    def assert_docs(self, url, command, *remaining):
-        rc = self.run_open_console(command, *remaining)
+    def assert_docs(self, url, command, *remaining, help_flag=False):
+        rc = self.run_open_console(command, *remaining, help_flag=help_flag)
         self.assertEqual(rc, 0)
         self.assertEqual(self.stdout.getvalue(), url + '\n')
         self.assertEqual(self.stderr.getvalue(), '')
@@ -109,6 +111,15 @@ class TestHelp(BaseOpenConsoleTest):
 
     def test_service_help(self):
         self.assert_docs(S3_DOCS, 's3', 'help')
+
+    def test_help_flag_without_a_command(self):
+        self.assert_docs(docs.DOCS_HOME, None, help_flag=True)
+
+    def test_help_flag_on_a_service(self):
+        self.assert_docs(S3_DOCS, 's3', help_flag=True)
+
+    def test_help_flag_on_a_subcommand(self):
+        self.assert_docs(LS_DOCS, 's3', 'ls', 's3://bucket', help_flag=True)
 
     def test_subcommand_help(self):
         self.assert_docs(LS_DOCS, 's3', 'ls', 'help')
@@ -322,12 +333,14 @@ class TestConsoleOpener(BaseOpenConsoleTest):
 
 
 class TestRunAndOpen(unittest.TestCase):
-    def run_and_open(self, command, remaining, rc=0):
+    def run_and_open(self, command, remaining, rc=0, help_flag=False):
         from awscli.customizations.openconsole import (
             run_and_open,
         )
 
-        parsed_args = argparse.Namespace(command=command, open_console=True)
+        parsed_args = argparse.Namespace(
+            command=command, open_console=True, help=help_flag
+        )
         callable_ = mock.Mock(return_value=rc)
         with mock.patch(f'{PKG}.ConsoleOpener.open') as opener_open:
             result = run_and_open(
@@ -341,6 +354,16 @@ class TestRunAndOpen(unittest.TestCase):
             with self.subTest(command=command, remaining=remaining):
                 rc, parsed_args, opener_open = self.run_and_open(
                     command, remaining
+                )
+                self.assertEqual(rc, 0)
+                self.assertFalse(hasattr(parsed_args, 'console_opener'))
+                self.assertFalse(opener_open.called)
+
+    def test_help_flag_only_shows_help(self):
+        for command, remaining in ((None, []), ('s3', ['ls'])):
+            with self.subTest(command=command, remaining=remaining):
+                rc, parsed_args, opener_open = self.run_and_open(
+                    command, remaining, help_flag=True
                 )
                 self.assertEqual(rc, 0)
                 self.assertFalse(hasattr(parsed_args, 'console_opener'))

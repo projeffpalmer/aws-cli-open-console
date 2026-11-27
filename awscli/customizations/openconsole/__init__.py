@@ -33,11 +33,16 @@ def open_console(session, parsed_args, remaining):
     ``--console-link`` is given. Returns the exit code.
     """
     # Imported here so that importing this package stays cheap and safe.
+    from awscli.commands import help_requested
     from awscli.customizations.openconsole import browser, docs, resolver
 
     command = parsed_args.command
     remaining = list(remaining or ())
-    if resolver.is_help(command, remaining, session):
+    wants_help = help_requested(parsed_args)
+    if wants_help and command is None:
+        # ``aws --help`` names no command; it asks for what ``aws help`` does.
+        command = 'help'
+    if wants_help or resolver.is_help(command, remaining, session):
         url = docs.docs_url(command, remaining, session)
         LOG.debug('Console: documentation for %s: %s', command, url)
         return browser.deliver(url, url, session)
@@ -56,11 +61,14 @@ def run_and_open(session, parsed_args, remaining, command_callable):
     output, and its return code is returned. The console opens only after
     that command has completed successfully.
     """
+    from awscli.commands import help_requested
     from awscli.customizations.openconsole import resolver
 
     remaining = list(remaining or ())
     command = parsed_args.command
-    wants_help = resolver.is_help(command, remaining, session)
+    wants_help = help_requested(parsed_args) or resolver.is_help(
+        command, remaining, session
+    )
     if wants_help:
         return command_callable(remaining, parsed_args)
     opener = ConsoleOpener(session, command, remaining)

@@ -181,6 +181,13 @@ class TestConsoleLink(ConsoleCommandTest):
             'https://docs.aws.amazon.com/cli/latest/reference/s3/ls.html',
         )
 
+    def test_help_flag_opens_the_documentation(self):
+        self.assert_docs(
+            'ec2 describe-instances --help --console-link',
+            'https://docs.aws.amazon.com/cli/latest/reference/ec2/'
+            'describe-instances.html',
+        )
+
     def test_help_topics(self):
         self.assert_docs(
             'help topics --console-link',

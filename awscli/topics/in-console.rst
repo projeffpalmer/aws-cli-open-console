@@ -216,7 +216,7 @@ Differences from ``--console-link``:
   printed. In print-only mode (see
   `Printing the URL Without Opening a Browser`_) the console URL is written
   to standard error instead, and nothing is signed in.
-* ``help`` only shows help.
+* ``help`` and ``--help`` only show help.
 * With both options, ``--console-link`` wins and the command does not run.
 
 An error while choosing the page or signing in never changes the command's
@@ -230,6 +230,7 @@ Help and Documentation
 
 With ``help``, ``--console-link`` opens the documentation instead of the
 console. Documentation pages are never signed in and no credentials are read.
+The ``--help`` option does the same as ``help``.
 
 * ``aws help --console-link`` opens the AWS documentation home page,
   ``https://docs.aws.amazon.com/``.
