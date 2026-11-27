@@ -13,6 +13,7 @@
 import hashlib
 import json
 import logging
+import os
 from urllib.parse import parse_qs, quote_plus, urlsplit
 
 from botocore.exceptions import (
@@ -311,6 +312,18 @@ class TestSigninUrl(unittest.TestCase):
 
     def test_hashed_in_leaves_other_text_alone(self):
         self.assertEqual(self.url.hashed_in('no browser'), 'no browser')
+
+    def test_only_the_browser_launcher_unhashes(self):
+        package = os.path.dirname(signin.__file__)
+        calls = {}
+        for name in sorted(os.listdir(package)):
+            if not name.endswith('.py'):
+                continue
+            with open(os.path.join(package, name), encoding='utf-8') as f:
+                count = f.read().count('.unhashed(')
+            if count:
+                calls[name] = count
+        self.assertEqual(calls, {'browser.py': 1})
 
 
 class TestFederationLoginUrl(SigninTestCase):
