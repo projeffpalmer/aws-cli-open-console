@@ -46,6 +46,13 @@ class TestFindValues:
         }
         assert follow.find_values(response, 'name') == ['outer']
 
+    def test_shallow_non_id_does_not_hide_a_deeper_id(self):
+        response = {
+            'ImageId': 'latest',
+            'Images': [{'ImageId': 'ami-0abc'}],
+        }
+        assert follow.find_values(response, 'image-id') == ['ami-0abc']
+
     def test_repeats_are_dropped_in_order(self):
         pages = [
             {'Items': [{'Id': 'a'}, {'Id': 'b'}]},
@@ -75,6 +82,23 @@ class TestResolveAfterRun:
             f'?region={REGION}#table?name=MusicCollection'
         )
         assert decision.node_path == 'aws.dynamodb.create-table'
+
+    def test_create_vpc_opens_that_vpc(self):
+        decision = resolve(
+            ['ec2', 'create-vpc', '--cidr-block', '10.1.0.0/16'],
+            {'Vpc': {'VpcId': 'vpc-abc', 'CidrBlock': '10.1.0.0/16'}},
+        )
+        assert decision.url == (
+            f'https://{REGION}.console.aws.amazon.com/vpc/home'
+            f'?region={REGION}#VpcDetails:VpcId=vpc-abc'
+        )
+
+    def test_create_snapshot_opens_the_snapshot_not_its_volume(self):
+        decision = resolve(
+            ['ec2', 'create-snapshot', '--volume-id', 'vol-abc'],
+            {'SnapshotId': 'snap-abc', 'VolumeId': 'vol-abc'},
+        )
+        assert decision.url == EC2 + '#SnapshotDetails:snapshotId=snap-abc'
 
     def test_run_instances_opens_the_instance(self):
         decision = resolve(

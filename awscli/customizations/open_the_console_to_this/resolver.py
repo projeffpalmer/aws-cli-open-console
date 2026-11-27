@@ -86,12 +86,20 @@ _MULTI_OPTIONS = frozenset(
         'group-ids',
         'image-ids',
         'instance-ids',
+        'key-names',
         'network-interface-ids',
         'repository-names',
         'snapshot-ids',
         'subnet-ids',
         'volume-ids',
+        'vpc-endpoint-ids',
         'vpc-ids',
+        'vpc-peering-connection-ids',
+        'allocation-ids',
+        'internet-gateway-ids',
+        'nat-gateway-ids',
+        'network-acl-ids',
+        'route-table-ids',
     ]
 )
 
@@ -101,6 +109,25 @@ _IMAGE = re.compile(r'^ami-[0-9a-f]+$')
 _SECURITY_GROUP = re.compile(r'^sg-[0-9a-f]+$')
 _VPC = re.compile(r'^vpc-[0-9a-f]+$')
 _SUBNET = re.compile(r'^subnet-[0-9a-f]+$')
+_SNAPSHOT = re.compile(r'^snap-[0-9a-f]+$')
+_ENI = re.compile(r'^eni-[0-9a-f]+$')
+_ROUTE_TABLE = re.compile(r'^rtb-[0-9a-f]+$')
+_IGW = re.compile(r'^igw-[0-9a-f]+$')
+_NAT = re.compile(r'^nat-[0-9a-f]+$')
+_ACL = re.compile(r'^acl-[0-9a-f]+$')
+_VPCE = re.compile(r'^vpce-[0-9a-f]+$')
+_PEERING = re.compile(r'^pcx-[0-9a-f]+$')
+_ALLOCATION = re.compile(r'^eipalloc-[0-9a-f]+$')
+_KEY_NAME = re.compile(r'^[A-Za-z0-9._-]+$')
+# Resource ids, as opposed to a shallow label that shares the same key.
+_RESOURCE_ID = re.compile(
+    r'^(?:'
+    r'(?:aki|ari|eipalloc|eni|igw|nat|rtb|snap|subnet|vol|vpce|vpc|acl|sg|'
+    r'ami|lt|i)'
+    r'-[0-9a-f]+'
+    r'|arn:[^:\s]+:[^:\s]*:[^:\s]*:[0-9]{0,12}:\S+'
+    r')$'
+)
 
 _LAMBDA_OPS = frozenset(
     [
@@ -600,14 +627,40 @@ def values_for(parsed, response, *names):
     return out
 
 
+def _seeks_ids(option_name):
+    """True when ``option_name`` names a resource id rather than a label."""
+    normalized = _normalize(option_name)
+    return (
+        normalized.endswith('id')
+        or normalized.endswith('ids')
+        or normalized.endswith('arn')
+        or normalized.endswith('arns')
+    )
+
+
 def find_values(response, option_name):
-    """String values of the response key that matches ``option_name``."""
+    """String values of the response key that matches ``option_name``.
+
+    An id search keeps every id-shaped value at any depth, so a shallow
+    label with the same key cannot hide the resource id. A name search
+    still stops at the shallowest match, which is the resource itself
+    rather than a nested child with the same label.
+    """
     if response is None:
         return []
     wanted = _normalize(option_name)
     keys = [wanted]
     if wanted.endswith('s'):
         keys.append(wanted[:-1])
+    if _seeks_ids(option_name):
+        for key in keys:
+            ids = [
+                value
+                for value in _strings_for_key(response, key)
+                if _RESOURCE_ID.match(value)
+            ]
+            if ids:
+                return ids
     for key in keys:
         values = _search(response, key)
         if values:
@@ -617,6 +670,24 @@ def find_values(response, option_name):
 
 def _normalize(name):
     return name.replace('-', '').replace('_', '').lower()
+
+
+def _strings_for_key(response, key):
+    """Every string stored under ``key``, at every depth."""
+    found = []
+    level = [response]
+    while level:
+        deeper = []
+        for item in _flatten(level):
+            for name, value in item.items():
+                if name in SKIPPED_KEYS:
+                    continue
+                if _normalize(name) == key:
+                    found.extend(_strings(value))
+                if isinstance(value, (dict, list)):
+                    deeper.append(value)
+        level = deeper
+    return list(dict.fromkeys(found))
 
 
 def _search(response, key):
@@ -718,13 +789,17 @@ def _page(ctx, parsed, url, verb, used, detail):
     )
 
 
-def _s3_buckets(ctx, parsed):
-    url = global_url(
-        ctx.region,
-        f's3/buckets?region={_region_query(ctx)}',
-        ctx.partition,
-    )
-    return _page(ctx, parsed, url, 'list', {}, 'opened the bucket list')
+def _s3_buckets(ctx, parsed, names=()):
+    tail = f's3/buckets?region={_region_query(ctx)}'
+    used = {}
+    detail = 'opened the bucket list'
+    if len(names) > 1:
+        selection = _select_filter('', 'name', names).split('?', 1)[1]
+        tail += '&' + selection
+        used = {'bucket': list(names)}
+        detail = 'opened the bucket list for several ids'
+    url = global_url(ctx.region, tail, ctx.partition)
+    return _page(ctx, parsed, url, 'list', used, detail)
 
 
 def _s3_bucket(ctx, parsed, bucket, prefix=None, tab=None):
@@ -836,6 +911,14 @@ def _build_s3api(parsed, ctx, response, after_run):
     prefix, _prefix_arn = _first_plain(parsed, response, 'prefix')
     if (bucket_arn or key_arn) and not bucket and not key:
         return None
+    if not bucket and not key and not prefix and response is not None:
+        names = [
+            value
+            for value in find_values(response, 'name')
+            if not _is_arn(value)
+        ]
+        if len(names) > 1:
+            return _s3_buckets(ctx, parsed, names)
     return _s3_choice(ctx, parsed, bucket, prefix, key, False)
 
 
@@ -849,112 +932,280 @@ def _vpc_fragment(ctx, parsed, fragment, verb, used, detail):
     return _page(ctx, parsed, url, verb, used, detail)
 
 
-def _id_page(ctx, parsed, response, names, pattern, one, many, ops, vpc=False):
-    raw = values_for(parsed, response, *names)
-    ids = [value for value in raw if pattern.match(value)]
-    page = _vpc_fragment if vpc else _ec2_fragment
+class _Ec2Resource:
+    """One EC2 or VPC console list, and the id that selects rows on it."""
+
+    def __init__(
+        self, names, pattern, detail, listing, filter_key, nouns, vpc=False,
+        exclude=(),
+    ):
+        self.names = names
+        self.pattern = pattern
+        self.detail = detail
+        self.listing = listing
+        self.filter_key = filter_key
+        self.nouns = nouns
+        self.vpc = vpc
+        self.exclude = exclude
+
+    def matches(self, operation):
+        if not operation or any(piece in operation for piece in self.exclude):
+            return False
+        padded = f'-{operation}'
+        return any(f'-{noun}' in padded for noun in self.nouns)
+
+    def noun_length(self, operation):
+        padded = f'-{operation}'
+        lengths = [
+            len(noun) for noun in self.nouns if f'-{noun}' in padded
+        ]
+        return max(lengths, default=-1)
+
+
+def _ec2_resource(
+    names, pattern, detail, listing, filter_key, nouns, vpc=False, exclude=(),
+):
+    return _Ec2Resource(
+        names, pattern, detail, listing, filter_key, nouns, vpc, exclude
+    )
+
+
+# Longer nouns are listed first only for readability. Matching picks the
+# longest noun that occurs in the operation, so ``create-vpc-endpoint``
+# is an endpoint and ``create-vpc`` is a VPC.
+_EC2_RESOURCES = (
+    _ec2_resource(
+        ('vpc-peering-connection-ids', 'vpc-peering-connection-id'),
+        _PEERING,
+        'PeeringConnectionDetails:vpcPeeringConnectionId={id}',
+        'PeeringConnections:',
+        'vpcPeeringConnectionId',
+        ('vpc-peering-connection',),
+        vpc=True,
+    ),
+    _ec2_resource(
+        ('vpc-endpoint-ids', 'vpc-endpoint-id'),
+        _VPCE,
+        'EndpointDetails:vpcEndpointId={id}',
+        'Endpoints:',
+        'vpcEndpointId',
+        ('vpc-endpoint',),
+        vpc=True,
+    ),
+    _ec2_resource(
+        ('nat-gateway-ids', 'nat-gateway-id'),
+        _NAT,
+        'NatGatewayDetails:natGatewayId={id}',
+        'NatGateways:',
+        'natGatewayId',
+        ('nat-gateway',),
+        vpc=True,
+    ),
+    _ec2_resource(
+        ('internet-gateway-ids', 'internet-gateway-id'),
+        _IGW,
+        'InternetGateway:internetGatewayId={id}',
+        'igws:',
+        'internetGatewayId',
+        ('internet-gateway',),
+        vpc=True,
+    ),
+    _ec2_resource(
+        ('network-acl-ids', 'network-acl-id'),
+        _ACL,
+        'NetworkAclDetails:networkAclId={id}',
+        'acls:',
+        'networkAclId',
+        ('network-acl',),
+        vpc=True,
+    ),
+    _ec2_resource(
+        ('route-table-ids', 'route-table-id'),
+        _ROUTE_TABLE,
+        'RouteTableDetails:routeTableId={id}',
+        'RouteTables:',
+        'routeTableId',
+        ('route-table',),
+        vpc=True,
+    ),
+    _ec2_resource(
+        ('network-interface-ids', 'network-interface-id'),
+        _ENI,
+        'NetworkInterfaceDetails:networkInterfaceId={id}',
+        'NetworkInterfaces:',
+        'networkInterfaceId',
+        ('network-interface',),
+    ),
+    _ec2_resource(
+        ('group-ids', 'group-id'),
+        _SECURITY_GROUP,
+        'SecurityGroup:groupId={id}',
+        'SecurityGroups:',
+        'groupId',
+        ('security-group',),
+        vpc=True,
+    ),
+    _ec2_resource(
+        ('snapshot-ids', 'snapshot-id'),
+        _SNAPSHOT,
+        'SnapshotDetails:snapshotId={id}',
+        'Snapshots:',
+        'snapshotId',
+        ('snapshot',),
+    ),
+    _ec2_resource(
+        ('volume-ids', 'volume-id'),
+        _VOLUME,
+        'VolumeDetails:volumeId={id}',
+        'Volumes:',
+        'volumeId',
+        ('volume',),
+    ),
+    _ec2_resource(
+        ('image-ids', 'image-id'),
+        _IMAGE,
+        'ImageDetails:imageId={id}',
+        'Images:',
+        'imageId',
+        ('image',),
+    ),
+    _ec2_resource(
+        ('subnet-ids', 'subnet-id'),
+        _SUBNET,
+        'SubnetDetails:subnetId={id}',
+        'subnets:',
+        'subnetId',
+        ('subnet',),
+        vpc=True,
+    ),
+    _ec2_resource(
+        ('vpc-ids', 'vpc-id'),
+        _VPC,
+        'VpcDetails:VpcId={id}',
+        'vpcs:',
+        'VpcId',
+        ('vpc',),
+        vpc=True,
+    ),
+    _ec2_resource(
+        ('allocation-ids', 'allocation-id'),
+        _ALLOCATION,
+        'AddressDetails:allocationId={id}',
+        'Addresses:',
+        'allocationId',
+        ('address',),
+    ),
+    _ec2_resource(
+        ('instance-ids', 'instance-id'),
+        _INSTANCE,
+        'InstanceDetails:instanceId={id}',
+        'Instances:',
+        'instanceId',
+        ('instance',),
+        exclude=(
+            'instance-type',
+            'instance-profile',
+            'reserved-instance',
+            'spot-instance',
+            'scheduled-instance',
+        ),
+    ),
+    # Key names match ordinary strings, so this stays last and cannot
+    # steal a command that already named a resource id.
+    _ec2_resource(
+        ('key-names', 'key-name'),
+        _KEY_NAME,
+        'KeyPairDetails:keyName={id}',
+        'KeyPairs:',
+        'keyName',
+        ('key-pair',),
+    ),
+)
+
+
+def _csv_filter(listing, key, ids):
+    """The list page with ``ids`` selected, in the console's hash filter."""
+    joined = ','.join(_quote_id(value) for value in ids)
+    if not listing.endswith(':'):
+        listing += ':'
+    return f'{listing}{key}={joined}'
+
+
+def _select_filter(listing, key, ids):
+    """A list page whose property filter ORs an exact match of each id.
+
+    Lambda, IAM, DynamoDB, CloudFormation and SQS keep this state in the
+    hash query (``fo=or`` plus one ``k``/``o``/``v`` triple per id).
+    """
+    parts = ['fo=or']
+    for index, value in enumerate(ids):
+        parts.append(f'k{index}={quote(key, safe="")}')
+        parts.append(f'o{index}={quote("=", safe="")}')
+        parts.append(f'v{index}={quote(value, safe="")}')
+    query = '&'.join(parts)
+    glue = '&' if '?' in listing else '?'
+    return f'{listing}{glue}{query}'
+
+
+def _operation_resource(operation):
+    best = None
+    best_len = -1
+    for resource in _EC2_RESOURCES:
+        if not resource.matches(operation):
+            continue
+        length = resource.noun_length(operation)
+        if length > best_len:
+            best = resource
+            best_len = length
+    return best
+
+
+def _open_ec2_resource(ctx, parsed, response, resource, ids_only=False):
+    raw = values_for(parsed, response, *resource.names)
+    ids = [value for value in raw if resource.pattern.match(value)]
+    page = _vpc_fragment if resource.vpc else _ec2_fragment
     if len(ids) == 1:
-        fragment = one.format(id=_quote_id(ids[0]))
         return page(
             ctx,
             parsed,
-            fragment,
+            resource.detail.format(id=_quote_id(ids[0])),
             'view',
-            {names[0]: ids[0]},
+            {resource.names[0]: ids[0]},
             f'opened {ids[0]}',
         )
     if len(ids) > 1:
         return page(
             ctx,
             parsed,
-            many,
+            _csv_filter(resource.listing, resource.filter_key, ids),
             'list',
-            {names[0]: ids},
+            {resource.names[0]: ids},
             'opened the list for several ids',
         )
-    if _arn_only(raw):
+    if _arn_only(raw) or ids_only or not resource.matches(parsed.operation):
         return None
-    if parsed.operation in ops:
-        return page(ctx, parsed, many, 'list', {}, 'opened the list')
-    return None
+    return page(ctx, parsed, resource.listing, 'list', {}, 'opened the list')
 
 
 def _build_ec2(parsed, ctx, response, after_run):
-    pages = (
-        _id_page(
-            ctx,
-            parsed,
-            response,
-            ('instance-ids', 'instance-id'),
-            _INSTANCE,
-            'InstanceDetails:instanceId={id}',
-            'Instances:',
-            frozenset(
-                [
-                    'describe-instances',
-                    'reboot-instances',
-                    'start-instances',
-                    'stop-instances',
-                    'terminate-instances',
-                ]
-            ),
-        ),
-        _run_instances(parsed, ctx, response, after_run),
-        _id_page(
-            ctx,
-            parsed,
-            response,
-            ('volume-ids', 'volume-id'),
-            _VOLUME,
-            'VolumeDetails:volumeId={id}',
-            'Volumes:',
-            frozenset(['describe-volumes']),
-        ),
-        _id_page(
-            ctx,
-            parsed,
-            response,
-            ('image-ids', 'image-id'),
-            _IMAGE,
-            'ImageDetails:imageId={id}',
-            None,
-            frozenset(['describe-images']),
-        ),
-        _id_page(
-            ctx,
-            parsed,
-            response,
-            ('group-ids', 'group-id'),
-            _SECURITY_GROUP,
-            'SecurityGroup:groupId={id}',
-            'SecurityGroups:',
-            frozenset(['describe-security-groups']),
-            vpc=True,
-        ),
-        _id_page(
-            ctx,
-            parsed,
-            response,
-            ('vpc-ids', 'vpc-id'),
-            _VPC,
-            'VpcDetails:VpcId={id}',
-            'vpcs:',
-            frozenset(['describe-vpcs']),
-            vpc=True,
-        ),
-        _id_page(
-            ctx,
-            parsed,
-            response,
-            ('subnet-ids', 'subnet-id'),
-            _SUBNET,
-            'SubnetDetails:subnetId={id}',
-            'subnets:',
-            frozenset(['describe-subnets']),
-            vpc=True,
-        ),
-    )
-    for decision in pages:
+    if parsed.operation == 'run-instances':
+        decision = _run_instances(parsed, ctx, response, after_run)
+        if decision is not None:
+            return decision
+    chosen = _operation_resource(parsed.operation)
+    if chosen is not None:
+        decision = _open_ec2_resource(ctx, parsed, response, chosen)
+        if decision is not None:
+            return decision
+        raw = values_for(parsed, response, *chosen.names)
+        if _arn_only(raw):
+            return None
+    for resource in _EC2_RESOURCES:
+        if resource is chosen:
+            continue
+        decision = _open_ec2_resource(
+            ctx, parsed, response, resource, ids_only=True
+        )
         if decision is not None:
             return decision
     if parsed.operation is None:
@@ -968,21 +1219,29 @@ def _run_instances(parsed, ctx, response, after_run):
     raw = values_for(parsed, response, 'instance-ids', 'instance-id')
     ids = [value for value in raw if _INSTANCE.match(value)]
     if len(ids) == 1:
-        fragment = 'InstanceDetails:instanceId=' + _quote_id(ids[0])
         return _ec2_fragment(
             ctx,
             parsed,
-            fragment,
+            'InstanceDetails:instanceId=' + _quote_id(ids[0]),
             'view',
             {'instance-id': ids[0]},
             f'opened {ids[0]}',
         )
-    if len(ids) > 1 or after_run:
+    if len(ids) > 1:
         return _ec2_fragment(
-            ctx, parsed, 'Instances:', 'list', {}, 'opened the instance list'
+            ctx,
+            parsed,
+            _csv_filter('Instances:', 'instanceId', ids),
+            'list',
+            {'instance-id': ids},
+            'opened the instance list for several ids',
         )
     if _arn_only(raw):
         return None
+    if after_run:
+        return _ec2_fragment(
+            ctx, parsed, 'Instances:', 'list', {}, 'opened the instance list'
+        )
     return _ec2_fragment(
         ctx,
         parsed,
@@ -1019,7 +1278,17 @@ def _build_lambda(parsed, ctx, response, after_run):
             {'function-name': names[0]},
             f'opened function {names[0]}',
         )
-    if len(names) > 1 or parsed.operation in _LAMBDA_OPS:
+    if len(names) > 1:
+        fragment = _select_filter('/functions', 'functionName', names)
+        return _page(
+            ctx,
+            parsed,
+            _regional_page(ctx, 'lambda/home', fragment),
+            'list',
+            {'function-name': names},
+            'opened the function list for several ids',
+        )
+    if parsed.operation in _LAMBDA_OPS:
         creating = parsed.operation == 'create-function' and not names
         creating = creating and not after_run
         if creating:
@@ -1051,10 +1320,20 @@ def _build_lambda(parsed, ctx, response, after_run):
 
 
 def _build_dynamodb(parsed, ctx, response, after_run):
-    raw = values_for(parsed, response, 'table-name')
+    raw = values_for(parsed, response, 'table-name', 'table-names')
     if _arn_only(raw):
         return None
     names = [value for value in raw if not _is_arn(value)]
+    if len(names) > 1:
+        fragment = _select_filter('table', 'tableName', names)
+        return _page(
+            ctx,
+            parsed,
+            _regional_page(ctx, 'dynamodbv2/home', fragment),
+            'list',
+            {'table-name': names},
+            'opened the table list for several ids',
+        )
     if len(names) == 1:
         fragment = 'table?name=' + _quote_id(names[0])
         return _page(
@@ -1099,12 +1378,40 @@ def _dynamodb_home(parsed, ctx):
     )
 
 
+def _plain_names(parsed, response, name):
+    """Plain names for ``name``, or None when every value is an ARN."""
+    values = list(values_for(parsed, response, name))
+    if _arn_only(values):
+        return None
+    return [value for value in values if not _is_arn(value)]
+
+
 def _build_iam(parsed, ctx, response, after_run):
     del after_run
-    role, role_arn = _first_plain(parsed, response, 'role-name')
-    user, user_arn = _first_plain(parsed, response, 'user-name')
-    if role_arn or user_arn:
+    roles = _plain_names(parsed, response, 'role-name')
+    users = _plain_names(parsed, response, 'user-name')
+    if roles is None or users is None:
         return None
+    if len(roles) > 1 and parsed.operation not in _USER_OPS:
+        return _iam_page(
+            ctx,
+            parsed,
+            _select_filter('/roles', 'roleName', roles),
+            'list',
+            {'role-name': roles},
+            'opened the role list for several ids',
+        )
+    role = roles[0] if roles else None
+    if len(users) > 1:
+        return _iam_page(
+            ctx,
+            parsed,
+            _select_filter('/users', 'userName', users),
+            'list',
+            {'user-name': users},
+            'opened the user list for several ids',
+        )
+    user = users[0] if users else None
     if role and parsed.operation not in _USER_OPS:
         fragment = '/roles/details/' + _quote_id(role)
         return _iam_page(
@@ -1149,12 +1456,23 @@ def _iam_home(parsed, ctx):
 
 
 def _build_sqs(parsed, ctx, response, after_run):
-    raw = values_for(parsed, response, 'queue-url')
+    raw = values_for(parsed, response, 'queue-url', 'queue-urls')
     urls = [
         value
         for value in raw
         if value.startswith('https://') or value.startswith('http://')
     ]
+    if len(urls) > 1:
+        return _page(
+            ctx,
+            parsed,
+            _regional_page(
+                ctx, 'sqs/v3/home', _select_filter('/queues', 'queueUrl', urls)
+            ),
+            'list',
+            {'queue-url': urls},
+            'opened the queue list for several ids',
+        )
     if len(urls) == 1:
         fragment = '/queues/' + _quote_id(urls[0])
         return _page(
@@ -1193,6 +1511,16 @@ def _build_cloudformation(parsed, ctx, response, after_run):
     if _arn_only(raw):
         return None
     names = [value for value in raw if not _is_arn(value)]
+    if len(names) > 1:
+        fragment = _select_filter('stacks', 'stackName', names)
+        return _page(
+            ctx,
+            parsed,
+            _regional_page(ctx, 'cloudformation/home', fragment),
+            'list',
+            {'stack-name': names},
+            'opened the stack list for several ids',
+        )
     if len(names) == 1:
         fragment = 'stacks/stackinfo?stackId=' + _quote_id(names[0])
         return _page(
@@ -1235,10 +1563,22 @@ def _build_cloudformation(parsed, ctx, response, after_run):
 
 def _build_logs(parsed, ctx, response, after_run):
     del after_run
-    group, group_arn = _log_group(parsed, response)
+    groups = _log_group_names(parsed, response)
     stream, stream_arn = _first_plain(parsed, response, 'log-stream-name')
-    if (group_arn or stream_arn) and not group:
+    if groups is None or (stream_arn and not groups):
         return None
+    if len(groups) > 1 and not stream:
+        joined = ','.join(_quote_id(value) for value in groups)
+        fragment = 'logsV2:log-groups$3FlogGroupNameFilter$3D' + joined
+        return _page(
+            ctx,
+            parsed,
+            _regional_page(ctx, 'cloudwatch/home', fragment),
+            'list',
+            {'log-group-name': groups},
+            'opened the log group list for several ids',
+        )
+    group = groups[0] if groups else None
     if group and stream:
         fragment = (
             'logsV2:log-groups/log-group/'
@@ -1278,17 +1618,25 @@ def _build_logs(parsed, ctx, response, after_run):
     return None
 
 
-def _log_group(parsed, response):
-    name, name_arn = _first_plain(parsed, response, 'log-group-name')
-    if name:
-        return name, False
-    ident, ident_arn = _first_plain(parsed, response, 'log-group-identifier')
-    if ident_arn or name_arn:
-        return None, True
+def _log_group_names(parsed, response):
+    """Log group names, or None when the only identifier is an ARN."""
+    values = list(values_for(parsed, response, 'log-group-name'))
+    if _arn_only(values):
+        return None
+    names = [value for value in values if not _is_arn(value)]
+    if names:
+        return names
+    ident, ident_arn = _first_plain(
+        parsed, response, 'log-group-identifier'
+    )
+    if ident_arn:
+        return None
     if ident and _is_arn(ident):
         resource = params.arn_resource([ident])
-        return resource, False
-    return ident, False
+        return [resource] if resource else None
+    if ident:
+        return [ident]
+    return []
 
 
 _BUILDERS = {

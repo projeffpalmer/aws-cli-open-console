@@ -55,8 +55,9 @@ command the first match wins:
   Amazon SQS. For example,
   ``aws ec2 describe-instances --instance-ids i-0123456789abcdef0`` opens
   that instance, and ``aws s3 ls s3://photos/2026/`` opens that prefix of
-  the bucket. One resource id opens that resource. Several ids open the
-  list.
+  the bucket. One resource id opens that resource. Several ids open that
+  resource's list page, with those ids in the page's filter so only they
+  are selected.
 * An ARN in the arguments opens AWS's console resolver,
   ``/go/view?arn=``. ``--open-console`` also uses an ARN from the API
   response when the command does not already name a page above.
@@ -195,7 +196,8 @@ The resource is found in the command's API response, and in the typed
 arguments when the response does not name it:
 
 * ``aws ec2 run-instances ... --open-console`` opens the launched instance.
-  When several instances are launched, the instances list page is opened.
+  When several instances are launched, the instances list opens with those
+  instance ids in its filter.
 * ``aws lambda create-function --function-name api ... --open-console``
   opens the ``api`` function.
 * ``aws s3 mb s3://photos --open-console`` opens the ``photos`` bucket.

@@ -123,7 +123,10 @@ class TestOpenConsole(ConsoleCommandTest):
             'ec2 run-instances --image-id ami-12345678 --count 2 '
             '--region us-west-2 --open-console'
         )
-        self.assert_signed_in(EC2_HOME + '#Instances:')
+        self.assert_signed_in(
+            EC2_HOME + '#Instances:instanceId='
+            'i-0aaaaaaaaaaaaaaaa,i-0bbbbbbbbbbbbbbbb'
+        )
 
     def test_paginated_response_is_fetched_once(self):
         self.parsed_responses = [

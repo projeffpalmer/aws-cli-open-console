@@ -209,13 +209,211 @@ class TestResolve(unittest.TestCase):
             f'?region={REGION}#InstanceDetails:instanceId=i-0123456789abcdef0',
         )
 
-    def test_several_instance_ids_open_the_list(self):
+    def test_several_instance_ids_open_the_filtered_list(self):
         decision = resolve(
             'ec2',
             ['describe-instances', '--instance-ids', 'i-0aaa', 'i-0bbb'],
             ctx(),
         )
-        self.assertTrue(decision.url.endswith('#Instances:'), decision.url)
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/ec2/home'
+            f'?region={REGION}#Instances:instanceId=i-0aaa,i-0bbb',
+        )
+        self.assertEqual(decision.verb, 'list')
+
+    def test_describe_images_without_ids_opens_the_image_list(self):
+        decision = resolve('ec2', ['describe-images'], ctx())
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/ec2/home'
+            f'?region={REGION}#Images:',
+        )
+
+    def test_several_image_ids_open_the_filtered_image_list(self):
+        decision = resolve(
+            'ec2',
+            ['describe-images', '--image-ids', 'ami-aaa', 'ami-bbb'],
+            ctx(),
+        )
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/ec2/home'
+            f'?region={REGION}#Images:imageId=ami-aaa,ami-bbb',
+        )
+
+    def test_one_image_opens_the_image(self):
+        decision = resolve(
+            'ec2', ['describe-images', '--image-ids', 'ami-abc'], ctx()
+        )
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/ec2/home'
+            f'?region={REGION}#ImageDetails:imageId=ami-abc',
+        )
+
+    def test_create_vpc_opens_the_vpc_list(self):
+        decision = resolve(
+            'ec2', ['create-vpc', '--cidr-block', '10.1.0.0/16'], ctx()
+        )
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/vpc/home'
+            f'?region={REGION}#vpcs:',
+        )
+
+    def test_several_vpc_ids_open_the_filtered_vpc_list(self):
+        decision = resolve(
+            'ec2',
+            ['describe-vpcs', '--vpc-ids', 'vpc-aaa', 'vpc-bbb'],
+            ctx(),
+        )
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/vpc/home'
+            f'?region={REGION}#vpcs:VpcId=vpc-aaa,vpc-bbb',
+        )
+
+    def test_create_snapshot_opens_the_snapshot_list(self):
+        decision = resolve(
+            'ec2', ['create-snapshot', '--volume-id', 'vol-abc'], ctx()
+        )
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/ec2/home'
+            f'?region={REGION}#Snapshots:',
+        )
+
+    def test_instance_types_stay_on_the_ec2_home(self):
+        decision = resolve('ec2', ['describe-instance-types'], ctx())
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/ec2/home'
+            f'?region={REGION}',
+        )
+
+    def test_several_functions_open_the_filtered_list(self):
+        decision = resolve(
+            'lambda',
+            ['list-functions'],
+            ctx(),
+            response={
+                'Functions': [
+                    {'FunctionName': 'alpha'},
+                    {'FunctionName': 'beta'},
+                ]
+            },
+            after_run=True,
+        )
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/lambda/home'
+            f'?region={REGION}#/functions?fo=or'
+            '&k0=functionName&o0=%3D&v0=alpha'
+            '&k1=functionName&o1=%3D&v1=beta',
+        )
+
+    def test_several_roles_open_the_filtered_list(self):
+        decision = resolve(
+            'iam',
+            ['list-roles'],
+            ctx(),
+            response={
+                'Roles': [{'RoleName': 'Admin'}, {'RoleName': 'ReadOnly'}]
+            },
+            after_run=True,
+        )
+        self.assertEqual(
+            decision.url,
+            'https://console.aws.amazon.com/iam/home#/roles?fo=or'
+            '&k0=roleName&o0=%3D&v0=Admin'
+            '&k1=roleName&o1=%3D&v1=ReadOnly',
+        )
+
+    def test_several_queues_open_the_filtered_list(self):
+        first = 'https://sqs.us-west-2.amazonaws.com/123/a'
+        second = 'https://sqs.us-west-2.amazonaws.com/123/b'
+        decision = resolve(
+            'sqs',
+            ['list-queues'],
+            ctx(),
+            response={'QueueUrls': [first, second]},
+            after_run=True,
+        )
+        self.assertIn('#/queues?fo=or', decision.url)
+        self.assertIn('k0=queueUrl', decision.url)
+        self.assertIn('v0=' + quote_plus(first), decision.url)
+        self.assertIn('v1=' + quote_plus(second), decision.url)
+
+    def test_several_stacks_open_the_filtered_list(self):
+        decision = resolve(
+            'cloudformation',
+            ['list-stacks'],
+            ctx(),
+            response={
+                'Stacks': [{'StackName': 'one'}, {'StackName': 'two'}]
+            },
+            after_run=True,
+        )
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/cloudformation/home'
+            f'?region={REGION}#stacks?fo=or'
+            '&k0=stackName&o0=%3D&v0=one'
+            '&k1=stackName&o1=%3D&v1=two',
+        )
+
+    def test_several_log_groups_open_the_filtered_list(self):
+        decision = resolve(
+            'logs',
+            ['describe-log-groups'],
+            ctx(),
+            response={
+                'logGroups': [
+                    {'logGroupName': 'app'},
+                    {'logGroupName': 'api'},
+                ]
+            },
+            after_run=True,
+        )
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/cloudwatch/home'
+            f'?region={REGION}#logsV2:log-groups'
+            '$3FlogGroupNameFilter$3Dapp,api',
+        )
+
+    def test_several_buckets_open_the_filtered_list(self):
+        decision = resolve(
+            's3api',
+            ['list-buckets'],
+            ctx(),
+            response={
+                'Buckets': [{'Name': 'photos'}, {'Name': 'logs'}]
+            },
+            after_run=True,
+        )
+        self.assertIn('/s3/buckets?region=', decision.url)
+        self.assertIn('fo=or', decision.url)
+        self.assertIn('k0=name', decision.url)
+        self.assertIn('v0=photos', decision.url)
+        self.assertIn('v1=logs', decision.url)
+
+    def test_several_tables_open_the_filtered_list(self):
+        decision = resolve(
+            'dynamodb',
+            ['list-tables'],
+            ctx(),
+            response={'TableNames': ['Music', 'Orders']},
+            after_run=True,
+        )
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/dynamodbv2/home'
+            f'?region={REGION}#table?fo=or'
+            '&k0=tableName&o0=%3D&v0=Music'
+            '&k1=tableName&o1=%3D&v1=Orders',
+        )
 
     def test_lambda_function_named_help(self):
         decision = resolve(
