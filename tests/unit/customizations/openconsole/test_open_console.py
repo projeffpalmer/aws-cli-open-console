@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -14,7 +14,7 @@ import argparse
 import io
 import logging
 
-from awscli.customizations.open_the_console_to_this import (
+from awscli.customizations.openconsole import (
     ConsoleOpener,
     docs,
     open_console,
@@ -22,8 +22,7 @@ from awscli.customizations.open_the_console_to_this import (
 )
 from awscli.testutils import mock, unittest
 
-PKG = 'awscli.customizations.open_the_console_to_this'
-ACCOUNT = '123456789012'
+PKG = 'awscli.customizations.openconsole'
 SIGNIN = signin.SigninUrl(
     'signin.aws.amazon.com', 'https://console.aws.amazon.com/', 'secret-token'
 )
@@ -227,9 +226,8 @@ class TestOpenConsole(BaseOpenConsoleTest):
             '&region=us-west-2\n',
         )
 
-    def test_one_account_resolver_shared_by_resolver_and_signin(self):
+    def test_account_resolver_is_given_to_sign_in(self):
         with mock.patch(f'{PKG}.account.AccountResolver') as account_cls:
-            account_cls.return_value.get.return_value = ACCOUNT
             self.run_open_console('iam')
         account_cls.assert_called_once_with(self.session, 'us-west-2')
         self.assertIs(self.wrap.call_args[0][4], account_cls.return_value)
@@ -237,12 +235,7 @@ class TestOpenConsole(BaseOpenConsoleTest):
             self.stdout.getvalue(),
             'https://console.aws.amazon.com/iam/home\n',
         )
-        self.assertFalse(account_cls.return_value.get.called)
-
-    def test_account_is_not_looked_up_when_not_needed(self):
-        with mock.patch(f'{PKG}.account.AccountResolver') as account_cls:
-            self.run_open_console('s3', 'ls')
-        self.assertFalse(account_cls.return_value.get.called)
+        self.assertFalse(account_cls.return_value.caller_arn.called)
 
     def test_debug_log_has_decision_but_no_signin_url(self):
         self.session.get_credentials.return_value = mock.Mock(method='env')
@@ -252,8 +245,8 @@ class TestOpenConsole(BaseOpenConsoleTest):
         self.assertIn('node=aws.s3.ls', output)
         self.assertIn('source=console', output)
         self.assertIn('verb=list', output)
+        self.assertIn('explanation=aws.s3.ls: opened the bucket list.', output)
         self.assertIn('sign-in applied=True', output)
-        self.assertIn('credential method=env', output)
         self.assertNotIn('secret-token', output)
         self.assertNotIn('SigninToken', output)
 
@@ -330,7 +323,7 @@ class TestConsoleOpener(BaseOpenConsoleTest):
 
 class TestRunAndOpen(unittest.TestCase):
     def run_and_open(self, command, remaining, rc=0):
-        from awscli.customizations.open_the_console_to_this import (
+        from awscli.customizations.openconsole import (
             run_and_open,
         )
 
@@ -367,7 +360,7 @@ class TestRunAndOpen(unittest.TestCase):
         self.assertFalse(opener_open.called)
 
     def test_api_response_opens_after_the_command_returns(self):
-        from awscli.customizations.open_the_console_to_this import (
+        from awscli.customizations.openconsole import (
             run_and_open,
         )
 

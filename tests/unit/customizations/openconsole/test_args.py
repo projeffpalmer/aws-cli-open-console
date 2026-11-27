@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -10,7 +10,7 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-from awscli.customizations.open_the_console_to_this.args import (
+from awscli.customizations.openconsole.args import (
     ParsedArgs,
     parse_remaining,
 )
@@ -137,6 +137,14 @@ class TestParseRemaining(unittest.TestCase):
         self.assertTrue(parsed.help)
         self.assertEqual(parsed.positionals, ['s3://b/'])
         self.assertEqual(parsed.positional_values, {'paths': ['s3://b/']})
+
+    def test_help_before_another_positional_is_a_value(self):
+        parsed = self.parse(['help', 's3://b/help'], ['paths'])
+        self.assertFalse(parsed.help)
+        self.assertEqual(parsed.positionals, ['help', 's3://b/help'])
+        self.assertEqual(
+            parsed.positional_values, {'paths': ['help', 's3://b/help']}
+        )
 
     def test_help_alone(self):
         parsed = self.parse(['help'], ['paths'])

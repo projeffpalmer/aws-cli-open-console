@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -16,11 +16,7 @@ Used by ``--open-console``. Identifiers come from the API response when
 it names the resource, and from the typed arguments otherwise.
 """
 
-from awscli.customizations.open_the_console_to_this import resolver
-
-find_values = resolver.find_values
-
-__all__ = ['find_values', 'resolve_after_run']
+from awscli.customizations.openconsole import resolver
 
 
 def resolve_after_run(command, remaining, response, ctx):

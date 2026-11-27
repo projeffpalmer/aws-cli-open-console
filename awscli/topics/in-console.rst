@@ -8,8 +8,8 @@ The ``--console-link`` global option opens the AWS Management Console page that
 best matches a command, instead of running the command. Add it to any
 command::
 
-    $ aws s3 ls s3://photos/2026/ --region us-west-2 --console-link
-    https://console.aws.amazon.com/s3/buckets/photos?region=us-west-2&prefix=2026%2F&showversions=false
+    $ aws s3 ls s3://amzn-s3-demo-bucket/2026/ --region us-west-2 --console-link
+    https://console.aws.amazon.com/s3/buckets/amzn-s3-demo-bucket?region=us-west-2&prefix=2026%2F&showversions=false
 
 The AWS CLI prints the console URL as one line on standard output and opens it
 in your web browser, signed in with the credentials the command would have
@@ -28,14 +28,13 @@ against the service. The command line is only used to choose a console page.
 
 The only network calls are those needed to sign in to the console (see
 `Signing In`_): at most one AWS STS ``GetFederationToken`` call, at most one
-AWS STS ``GetCallerIdentity`` call when the chosen page needs your account ID
-or the type of your temporary credentials has to be checked, and one request
-to the AWS federation endpoint. Opening a documentation page
-with ``help`` (see `Help and Documentation`_) makes no network calls and does
-not read your credentials. In print-only mode (see
-`Printing the URL Without Opening a Browser`_) nothing is signed in, so the
-only possible call is ``GetCallerIdentity`` for a page that needs your
-account ID.
+AWS STS ``GetCallerIdentity`` call when the type of your temporary
+credentials has to be checked, and one request to the AWS federation
+endpoint. Opening a documentation page with ``help`` (see
+`Help and Documentation`_) makes no network calls and does not read your
+credentials. In print-only mode (see
+`Printing the URL Without Opening a Browser`_) nothing is signed in, so no
+network calls are made.
 
 Messages, such as a sign-in warning, are written to standard error. Standard
 output only ever holds the one URL, so the output can be used in scripts::
@@ -54,10 +53,12 @@ command the first match wins:
   DynamoDB, AWS IAM, Amazon CloudWatch Logs, AWS CloudFormation and
   Amazon SQS. For example,
   ``aws ec2 describe-instances --instance-ids i-0123456789abcdef0`` opens
-  that instance, and ``aws s3 ls s3://photos/2026/`` opens that prefix of
-  the bucket. One resource id opens that resource. Several ids open that
-  resource's list page, with those ids in the page's filter so only they
-  are selected.
+  that instance, and ``aws s3 ls s3://amzn-s3-demo-bucket/2026/`` opens
+  that prefix of the bucket. One resource id opens that resource. Several
+  ids open that resource's list page. For Amazon EC2 (including VPC
+  resources) and AWS Lambda, those ids are put in the page's filter so
+  only they are shown, unless that would make the URL longer than 2,000
+  characters.
 * An ARN in the arguments opens AWS's console resolver,
   ``/go/view?arn=``. ``--open-console`` also uses an ARN from the API
   response when the command does not already name a page above.
@@ -162,7 +163,7 @@ following applies:
   container.
 
 The values ``false``, ``0``, ``no`` and ``off`` are accepted, in any case.
-Any other value, or no value, keeps the browser behaviour; a ``true`` value
+Any other value, or no value, keeps the browser behavior; a ``true`` value
 in one place does not override a ``false`` value in the other. For example::
 
     [profile build-server]
@@ -200,7 +201,8 @@ arguments when the response does not name it:
   instance ids in its filter.
 * ``aws lambda create-function --function-name api ... --open-console``
   opens the ``api`` function.
-* ``aws s3 mb s3://photos --open-console`` opens the ``photos`` bucket.
+* ``aws s3 mb s3://amzn-s3-demo-bucket --open-console`` opens the
+  ``amzn-s3-demo-bucket`` bucket.
 
 The page is that of the command itself when it shows one resource, otherwise
 that of the command that describes the same kind of resource, such as
@@ -232,11 +234,13 @@ console. Documentation pages are never signed in and no credentials are read.
 * ``aws help --console-link`` opens the AWS documentation home page,
   ``https://docs.aws.amazon.com/``.
 * ``aws s3 help --console-link`` opens the documentation landing page of the
-  service, or its AWS CLI reference when the service has no landing page.
+  service when the AWS CLI knows it, and the service's AWS CLI reference
+  otherwise.
 * ``aws s3 ls help --console-link`` opens the AWS CLI reference page of the
   command.
 * ``aws help <topic> --console-link`` opens the online version of a topic
-  guide, such as this one with ``aws help in-console --console-link``.
+  guide, such as ``aws help config-vars --console-link``. This topic is
+  part of the fork and has no online version.
   ``aws help topics --console-link`` opens the topic index.
 
 

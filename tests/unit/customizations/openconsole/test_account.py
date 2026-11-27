@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -12,13 +12,13 @@
 # language governing permissions and limitations under the License.
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from awscli.customizations.open_the_console_to_this.account import (
+from awscli.customizations.openconsole.account import (
     AccountResolver,
 )
 from awscli.testutils import mock, unittest
 
 ACCOUNT = '123456789012'
-FEDERATED_ARN = f'arn:aws:sts::{ACCOUNT}:federated-user/open-the-console'
+ROOT_ARN = f'arn:aws:iam::{ACCOUNT}:root'
 
 
 def make_session(identity=None, error=None):
@@ -33,15 +33,20 @@ def make_session(identity=None, error=None):
 
 
 class TestAccountResolver(unittest.TestCase):
-    def test_get_calls_sts_once_and_caches(self):
-        session, client = make_session({'Account': ACCOUNT})
+    def test_caller_arn_calls_sts_once_and_caches(self):
+        session, client = make_session({'Account': ACCOUNT, 'Arn': ROOT_ARN})
         resolver = AccountResolver(session, 'eu-west-1')
-        self.assertEqual(resolver.get(), ACCOUNT)
-        self.assertEqual(resolver.get(), ACCOUNT)
+        self.assertEqual(resolver.caller_arn(), ROOT_ARN)
+        self.assertEqual(resolver.caller_arn(), ROOT_ARN)
         session.create_client.assert_called_once_with(
             'sts', region_name='eu-west-1'
         )
         client.get_caller_identity.assert_called_once_with()
+
+    def test_sts_is_not_called_until_the_arn_is_asked_for(self):
+        session, client = make_session({'Arn': ROOT_ARN})
+        AccountResolver(session, 'us-west-2')
+        session.create_client.assert_not_called()
 
     def test_failure_is_cached_as_none(self):
         error = ClientError(
@@ -50,76 +55,29 @@ class TestAccountResolver(unittest.TestCase):
         )
         session, client = make_session(error=error)
         resolver = AccountResolver(session, 'us-west-2')
-        self.assertIsNone(resolver.get())
-        self.assertIsNone(resolver.get())
+        self.assertIsNone(resolver.caller_arn())
+        self.assertIsNone(resolver.caller_arn())
         client.get_caller_identity.assert_called_once_with()
 
     def test_botocore_error_is_cached_as_none(self):
         session, client = make_session(error=NoCredentialsError())
         resolver = AccountResolver(session, 'us-west-2')
-        self.assertIsNone(resolver.get())
-        self.assertIsNone(resolver.get())
+        self.assertIsNone(resolver.caller_arn())
+        self.assertIsNone(resolver.caller_arn())
         client.get_caller_identity.assert_called_once_with()
 
     def test_create_client_failure_is_cached_as_none(self):
         session = mock.Mock()
         session.create_client.side_effect = NoCredentialsError()
         resolver = AccountResolver(session, 'us-west-2')
-        self.assertIsNone(resolver.get())
-        self.assertIsNone(resolver.get())
+        self.assertIsNone(resolver.caller_arn())
+        self.assertIsNone(resolver.caller_arn())
         session.create_client.assert_called_once()
 
-    def test_unusable_account_value_is_none(self):
-        session, client = make_session({'Account': 'not-an-id'})
-        resolver = AccountResolver(session, 'us-west-2')
-        self.assertIsNone(resolver.get())
-        self.assertIsNone(resolver.get())
-        client.get_caller_identity.assert_called_once_with()
-
-    def test_set_from_arn_avoids_the_sts_call(self):
-        session, client = make_session({'Account': '999999999999'})
-        resolver = AccountResolver(session, 'us-west-2')
-        resolver.set_from_arn(FEDERATED_ARN)
-        self.assertEqual(resolver.get(), ACCOUNT)
-        session.create_client.assert_not_called()
-
-    def test_set_from_arn_ignores_invalid_arns(self):
-        for arn in (
-            None,
-            '',
-            'not-an-arn',
-            'arn:aws:s3:::bucket',
-            'arn:aws:sts::12345:federated-user/x',
-            'arn:aws:sts::1234567890123:federated-user/x',
-            'arn:aws:sts::12345678901a:federated-user/x',
-        ):
-            with self.subTest(arn=arn):
-                session, client = make_session({'Account': ACCOUNT})
+    def test_unusable_response_is_none(self):
+        for identity in ({'Arn': 12345}, {'Account': ACCOUNT}, 'not-a-dict'):
+            with self.subTest(identity=identity):
+                session, client = make_session(identity)
                 resolver = AccountResolver(session, 'us-west-2')
-                resolver.set_from_arn(arn)
-                self.assertEqual(resolver.get(), ACCOUNT)
+                self.assertIsNone(resolver.caller_arn())
                 client.get_caller_identity.assert_called_once_with()
-
-    def test_caller_arn_and_account_share_one_call(self):
-        arn = f'arn:aws:iam::{ACCOUNT}:root'
-        session, client = make_session({'Account': ACCOUNT, 'Arn': arn})
-        resolver = AccountResolver(session, 'us-west-2')
-        self.assertEqual(resolver.caller_arn(), arn)
-        self.assertEqual(resolver.get(), ACCOUNT)
-        self.assertEqual(resolver.caller_arn(), arn)
-        client.get_caller_identity.assert_called_once_with()
-
-    def test_caller_arn_failure_is_cached_as_none(self):
-        session, client = make_session(error=NoCredentialsError())
-        resolver = AccountResolver(session, 'us-west-2')
-        self.assertIsNone(resolver.caller_arn())
-        self.assertIsNone(resolver.get())
-        client.get_caller_identity.assert_called_once_with()
-
-    def test_set_from_arn_after_failed_lookup(self):
-        session, client = make_session(error=NoCredentialsError())
-        resolver = AccountResolver(session, 'us-west-2')
-        self.assertIsNone(resolver.get())
-        resolver.set_from_arn(FEDERATED_ARN)
-        self.assertEqual(resolver.get(), ACCOUNT)
-        client.get_caller_identity.assert_called_once_with()

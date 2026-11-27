@@ -365,7 +365,7 @@ class TestCliDriver:
             GET_DATA['cli']['options'], {'console-link': console_link}
         ):
             with mock.patch(
-                'awscli.customizations.open_the_console_to_this.open_console',
+                'awscli.customizations.openconsole.open_console',
                 return_value=0,
             ) as open_console:
                 driver = CLIDriver(session=self.session)
@@ -387,7 +387,7 @@ class TestCliDriver:
             GET_DATA['cli']['options'], {'open-console': open_console}
         ):
             with mock.patch(
-                'awscli.customizations.open_the_console_to_this.run_and_open',
+                'awscli.customizations.openconsole.run_and_open',
                 return_value=0,
             ) as run_and_open:
                 driver = CLIDriver(session=self.session)

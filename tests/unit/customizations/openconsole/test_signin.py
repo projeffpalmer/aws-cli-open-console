@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -24,8 +24,8 @@ from botocore.exceptions import (
     UnauthorizedSSOTokenError,
 )
 
-from awscli.customizations.open_the_console_to_this import signin
-from awscli.customizations.open_the_console_to_this.account import (
+from awscli.customizations.openconsole import signin
+from awscli.customizations.openconsole.account import (
     AccountResolver,
 )
 from awscli.testutils import mock, unittest
@@ -356,9 +356,6 @@ class TestFederationLoginUrl(SigninTestCase):
                 self.login_url(session, account_resolver=resolver)
                 sts.get_caller_identity.assert_called_once_with()
                 sts.get_federation_token.assert_not_called()
-                # The account id lookup reuses the same response.
-                self.assertEqual(resolver.get(), ACCOUNT)
-                sts.get_caller_identity.assert_called_once_with()
 
     def test_non_role_temporary_credentials_are_refused(self):
         cases = [
@@ -490,8 +487,6 @@ class TestFederationLoginUrl(SigninTestCase):
         )
         self.assertEqual(query_of(url)['SigninToken'], [SIGNIN_TOKEN])
         self.assertNotIn('SessionDuration', self.http_get.call_args[0][1])
-        # The account id came from the federated user ARN: no extra call.
-        self.assertEqual(resolver.get(), ACCOUNT)
         sts.get_caller_identity.assert_not_called()
         self.assertEqual(session.create_client.call_count, 1)
 
@@ -544,12 +539,6 @@ class TestFederationLoginUrl(SigninTestCase):
         self.assertEqual(
             self.run_with_fake_recorder(False), ['GetFederationToken']
         )
-
-    def test_long_term_keys_set_account_from_arn(self):
-        session, _ = make_session(LONG_KEYS)
-        resolver = mock.Mock()
-        self.login_url(session, account_resolver=resolver)
-        resolver.set_from_arn.assert_called_once_with(FEDERATED_ARN)
 
     def assert_signin_error(self, session, reason, secrets=()):
         with self.assertRaises(signin.SigninError) as cm:

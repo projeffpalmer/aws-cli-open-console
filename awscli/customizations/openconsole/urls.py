@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -36,8 +36,7 @@ _ENCODERS = {
 
 
 def partition_for_region(session, region):
-    """Return ``aws``, ``aws-us-gov`` or ``aws-cn`` for ``region``.
-    """
+    """Return ``aws``, ``aws-us-gov`` or ``aws-cn`` for ``region``."""
     try:
         with warnings.catch_warnings():
             # botocore warns that this component is internal; the CLI
@@ -61,8 +60,7 @@ def signin_host(partition):
 
 
 def render(template, params):
-    """Fill ``{name}`` / ``{name:enc}`` placeholders from ``params``.
-    """
+    """Fill ``{name}`` / ``{name:enc}`` placeholders from ``params``."""
 
     def replace(match):
         name, enc = match.group(1), match.group(2)

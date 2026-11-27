@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -10,7 +10,7 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
-from awscli.customizations.open_the_console_to_this import docs
+from awscli.customizations.openconsole import docs
 from awscli.testutils import mock, unittest
 
 TOPIC = 'https://docs.aws.amazon.com/cli/latest/topic/'
@@ -59,6 +59,26 @@ class TestDocsUrl(unittest.TestCase):
         self.assertEqual(
             docs.docs_url('ec2', ['help'], session_with_operations()),
             'https://docs.aws.amazon.com/ec2/',
+        )
+
+    def test_service_without_a_known_landing_page_uses_the_reference(self):
+        for service in ('logs', 'elbv2', 'stepfunctions', 'sts', 's3api'):
+            with self.subTest(service=service):
+                self.assertEqual(
+                    docs.docs_url(
+                        service, ['help'], session_with_operations()
+                    ),
+                    f'{REFERENCE}{service}/index.html',
+                )
+
+    def test_unknown_subcommand_without_a_landing_page(self):
+        self.assertEqual(
+            docs.docs_url(
+                'logs',
+                ['no-such-op', 'help'],
+                session_with_operations('describe-log-groups'),
+            ),
+            REFERENCE + 'logs/index.html',
         )
 
     def test_s3_guide_without_a_session(self):

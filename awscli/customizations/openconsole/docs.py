@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -14,7 +14,7 @@
 
 from urllib.parse import quote
 
-from awscli.customizations.open_the_console_to_this.resolver import (
+from awscli.customizations.openconsole.resolver import (
     operation_known,
     parse_command,
 )
@@ -23,8 +23,25 @@ DOCS_HOME = 'https://docs.aws.amazon.com/'
 TOPIC_URL = 'https://docs.aws.amazon.com/cli/latest/topic/{}.html'
 REFERENCE = 'https://docs.aws.amazon.com/cli/latest/reference/'
 TOPICS_INDEX = 'index'
-_GUIDE_SERVICES = frozenset(['s3'])
-_REFERENCE_ONLY = frozenset(['configure', 'history'])
+# Services whose documentation landing page is
+# ``docs.aws.amazon.com/<name>/``. Any other command uses its AWS CLI
+# reference, which always exists.
+_GUIDE_SERVICES = frozenset(
+    [
+        'apigateway',
+        'cloudformation',
+        'dynamodb',
+        'ec2',
+        'ecs',
+        'events',
+        'iam',
+        'lambda',
+        'rds',
+        's3',
+        'sns',
+        'sqs',
+    ]
+)
 
 
 def docs_url(command, remaining, session=None):
@@ -51,29 +68,19 @@ def _target(command, remaining, session):
         return 'home', None, ()
     parsed = parse_command(command, remaining, session)
     if not parsed.operation:
-        if _service_guide(session, command):
-            return 'service', command, ()
-        return 'reference', command, ('index',)
+        return _service_target(command)
     if parsed.operation == 'wait' and not parsed.positionals:
         return 'reference', command, ('wait', 'index')
     if not operation_known(session, command, parsed.operation):
-        return 'service', command, ()
+        return _service_target(command)
     parts = [parsed.operation]
     if parsed.operation == 'wait' and parsed.positionals:
         parts.append(parsed.positionals[0])
     return 'reference', command, tuple(parts)
 
 
-def _service_guide(session, service):
-    """True when ``service`` has a documentation landing page."""
+def _service_target(service):
+    """The landing page of ``service``, else its AWS CLI reference."""
     if service in _GUIDE_SERVICES:
-        return True
-    if service in _REFERENCE_ONLY:
-        return False
-    if session is None or not hasattr(session, 'get_available_services'):
-        return True
-    try:
-        names = session.get_available_services()
-    except Exception:
-        return True
-    return service in names
+        return 'service', service, ()
+    return 'reference', service, ('index',)

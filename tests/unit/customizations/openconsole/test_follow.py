@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -12,7 +12,7 @@
 # language governing permissions and limitations under the License.
 import pytest
 
-from awscli.customizations.open_the_console_to_this import follow, resolver
+from awscli.customizations.openconsole import follow, resolver
 
 REGION = 'us-west-2'
 EC2 = f'https://{REGION}.console.aws.amazon.com/ec2/home?region={REGION}'
@@ -26,7 +26,7 @@ def resolve(argv, response):
 class TestFindValues:
     def test_matches_ignoring_case_and_dashes(self):
         response = {'DBInstance': {'DBInstanceIdentifier': 'db1'}}
-        assert follow.find_values(response, 'db-instance-identifier') == [
+        assert resolver.find_values(response, 'db-instance-identifier') == [
             'db1'
         ]
 
@@ -34,41 +34,41 @@ class TestFindValues:
         response = {
             'Instances': [{'InstanceId': 'i-1'}, {'InstanceId': 'i-2'}]
         }
-        assert follow.find_values(response, 'instance-ids') == ['i-1', 'i-2']
+        assert resolver.find_values(response, 'instance-ids') == ['i-1', 'i-2']
 
     def test_exact_key_wins_over_singular(self):
         response = {'InstanceIds': ['i-1'], 'InstanceId': 'i-9'}
-        assert follow.find_values(response, 'instance-ids') == ['i-1']
+        assert resolver.find_values(response, 'instance-ids') == ['i-1']
 
     def test_shallowest_match_wins(self):
         response = {
             'Table': {'Name': 'outer', 'Index': {'Name': 'inner'}},
         }
-        assert follow.find_values(response, 'name') == ['outer']
+        assert resolver.find_values(response, 'name') == ['outer']
 
     def test_shallow_non_id_does_not_hide_a_deeper_id(self):
         response = {
             'ImageId': 'latest',
             'Images': [{'ImageId': 'ami-0abc'}],
         }
-        assert follow.find_values(response, 'image-id') == ['ami-0abc']
+        assert resolver.find_values(response, 'image-id') == ['ami-0abc']
 
     def test_repeats_are_dropped_in_order(self):
         pages = [
             {'Items': [{'Id': 'a'}, {'Id': 'b'}]},
             {'Items': [{'Id': 'a'}]},
         ]
-        assert follow.find_values(pages, 'id') == ['a', 'b']
+        assert resolver.find_values(pages, 'id') == ['a', 'b']
 
     def test_response_metadata_and_non_strings_are_ignored(self):
         response = {
             'ResponseMetadata': {'RequestId': 'r'},
             'Count': {'RequestId': 3},
         }
-        assert follow.find_values(response, 'request-id') == []
+        assert resolver.find_values(response, 'request-id') == []
 
     def test_none_response(self):
-        assert follow.find_values(None, 'table-name') == []
+        assert resolver.find_values(None, 'table-name') == []
 
 
 class TestResolveAfterRun:

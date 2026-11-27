@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -33,16 +33,7 @@ def open_console(session, parsed_args, remaining):
     ``--console-link`` is given. Returns the exit code.
     """
     # Imported here so that importing this package stays cheap and safe.
-    from awscli.customizations.open_the_console_to_this import (
-        browser,
-        docs,
-        resolver,
-        signin,
-        urls,
-    )
-    from awscli.customizations.open_the_console_to_this.account import (
-        AccountResolver,
-    )
+    from awscli.customizations.openconsole import browser, docs, resolver
 
     command = parsed_args.command
     remaining = list(remaining or ())
@@ -51,13 +42,9 @@ def open_console(session, parsed_args, remaining):
         LOG.debug('Console: documentation for %s: %s', command, url)
         return browser.deliver(url, url, session)
 
-    region, partition, account_resolver, ctx = _console_context(
-        session, urls, resolver, AccountResolver
-    )
+    region, partition, account_resolver, ctx = _console_context(session)
     decision = resolver.resolve(command, remaining, ctx)
-    open_url = _sign_in(
-        session, decision, partition, region, account_resolver, signin, browser
-    )
+    open_url = _sign_in(session, decision, partition, region, account_resolver)
     return browser.deliver(decision.url, open_url, session)
 
 
@@ -67,9 +54,9 @@ def run_and_open(session, parsed_args, remaining, command_callable):
     Called from ``CLIDriver.main()`` when ``--open-console`` is given. The
     command runs exactly as without the flag, including displaying its
     output, and its return code is returned. The console opens only after
-    that command has completed successfully. 
+    that command has completed successfully.
     """
-    from awscli.customizations.open_the_console_to_this import resolver
+    from awscli.customizations.openconsole import resolver
 
     remaining = list(remaining or ())
     command = parsed_args.command
@@ -137,39 +124,21 @@ class ConsoleOpener:
             uni_print(f'Could not open the console ({reason}).\n', sys.stderr)
 
     def _token_hashed(self, text):
-        """Return ``text`` hashed.
-        """
+        """Return ``text`` with the sign-in token replaced by its hash."""
         if self._open_url is None or isinstance(self._open_url, str):
             return text
         return self._open_url.hashed_in(text)
 
     def _open(self, response):
-        from awscli.customizations.open_the_console_to_this import (
-            browser,
-            follow,
-            resolver,
-            signin,
-            urls,
-        )
-        from awscli.customizations.open_the_console_to_this.account import (
-            AccountResolver,
-        )
+        from awscli.customizations.openconsole import browser, follow
 
         session = self._session
-        region, partition, account_resolver, ctx = _console_context(
-            session, urls, resolver, AccountResolver
-        )
+        region, partition, account_resolver, ctx = _console_context(session)
         decision = follow.resolve_after_run(
             self._command, self._remaining, response, ctx
         )
         self._open_url = _sign_in(
-            session,
-            decision,
-            partition,
-            region,
-            account_resolver,
-            signin,
-            browser,
+            session, decision, partition, region, account_resolver
         )
         browser.open_beside_output(decision.url, self._open_url, session)
 
@@ -204,19 +173,18 @@ def _replay_class(base):
     return _REPLAY_CLASSES[base]
 
 
-def _console_context(session, urls, resolver, account_resolver_cls):
-    region, partition = _location(session, urls)
-    account_resolver = account_resolver_cls(session, region)
-    ctx = resolver.Context(
-        region,
-        partition,
-        account_id=account_resolver.get,
-        session=session,
-    )
+def _console_context(session):
+    from awscli.customizations.openconsole import account, resolver
+
+    region, partition = _location(session)
+    account_resolver = account.AccountResolver(session, region)
+    ctx = resolver.Context(region, partition, session=session)
     return region, partition, account_resolver, ctx
 
 
-def _location(session, urls):
+def _location(session):
+    from awscli.customizations.openconsole import urls
+
     region = session.get_config_variable('region')
     if not region:
         region = DEFAULT_REGION
@@ -224,19 +192,18 @@ def _location(session, urls):
     return region, urls.partition_for_region(session, region)
 
 
-def _sign_in(
-    session, decision, partition, region, account_resolver, signin, browser
-):
-    """Return the URL to open.
-    """
+def _sign_in(session, decision, partition, region, account_resolver):
+    """Return the URL to open: the sign-in URL, else the console URL."""
+    from awscli.customizations.openconsole import browser, signin
     from awscli.customizations.utils import uni_print
 
     LOG.debug(
-        'Console: node=%s source=%s verb=%s params=%r',
+        'Console: node=%s source=%s verb=%s params=%r explanation=%s',
         decision.node_path,
         decision.source,
         decision.verb,
         decision.params,
+        decision.explanation,
     )
     if browser.print_only(session):
         LOG.debug('Console: sign-in not attempted in print-only mode')
@@ -247,22 +214,5 @@ def _sign_in(
     if warning:
         uni_print(warning + '\n', sys.stderr)
     signed_in = warning is None and open_url != decision.url
-    LOG.debug(
-        'Console: sign-in applied=%s, credential method=%s',
-        signed_in,
-        _credential_method(session, warning, signin),
-    )
+    LOG.debug('Console: sign-in applied=%s', signed_in)
     return open_url
-
-
-def _credential_method(session, warning, signin):
-    """The provider name of the already resolved credentials, if any.
-    """
-    if warning is not None and not warning.startswith(
-        'Console sign-in failed'
-    ):
-        return None
-    try:
-        return getattr(session.get_credentials(), 'method', None)
-    except Exception:
-        return None

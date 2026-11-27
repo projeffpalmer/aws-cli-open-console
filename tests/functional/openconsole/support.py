@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -12,10 +12,10 @@
 # language governing permissions and limitations under the License.
 from urllib.parse import parse_qs, urlsplit
 
-from awscli.customizations.open_the_console_to_this import signin
+from awscli.customizations.openconsole import signin
 from awscli.testutils import BaseAWSCommandParamsTest, mock
 
-PKG = 'awscli.customizations.open_the_console_to_this'
+PKG = 'awscli.customizations.openconsole'
 ACCOUNT = '123456789012'
 LOGIN_PREFIX = 'https://signin.aws.amazon.com/federation?Action=login&'
 SIGNIN_TOKEN = 'AQoDYXdzEJr//signin+token/value=='

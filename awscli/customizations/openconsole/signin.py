@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -27,7 +27,7 @@ from botocore.history import get_global_history_recorder
 from botocore.httpsession import URLLib3Session
 from botocore.utils import get_environ_proxies
 
-from awscli.customizations.open_the_console_to_this import urls
+from awscli.customizations.openconsole import urls
 
 LOG = logging.getLogger(__name__)
 
@@ -84,15 +84,13 @@ class SigninCredentials:
 
 
 def hashed(secret):
-    """Return the stand-in that is shown instead of ``secret``.
-    """
+    """Return the stand-in that is shown instead of ``secret``."""
     digest = hashlib.sha256(secret.encode('utf-8')).hexdigest()
     return f'sha256:{digest[:HASH_DIGITS]}'
 
 
 class SigninUrl:
-    """The console login URL, whose sign-in token is a bearer secret.
-    """
+    """The console login URL, whose sign-in token is a bearer secret."""
 
     __slots__ = ('_host', '_destination', '_token')
 
@@ -120,8 +118,7 @@ class SigninUrl:
         return f'SigninUrl({str(self)!r})'
 
     def hashed_in(self, text):
-        """Return ``text`` with the token hashed wherever it is quoted.
-        """
+        """Return ``text`` with the token hashed wherever it is quoted."""
         stand_in = hashed(self._token)
         forms = {self._token, quote_plus(self._token)}
         for form in sorted(forms, key=len, reverse=True):
@@ -130,14 +127,13 @@ class SigninUrl:
 
 
 def _warning(message):
-    # The contract wants one line; provider messages can span several.
+    # The warning is one line; provider messages can span several.
     message = ' '.join((message or '').split()).rstrip('.')
     return f'{message}. {NO_SIGNIN}'
 
 
 def resolve_credentials(session):
-    """Return ``(SigninCredentials or None, warning or None)``.
-    """
+    """Return ``(SigninCredentials or None, warning or None)``."""
     try:
         creds = session.get_credentials()
         if creds is None:
@@ -178,8 +174,7 @@ class _DropSecretsFilter(logging.Filter):
 
 @contextlib.contextmanager
 def _secrets_kept_out_of_logs(*needles):
-    """Drop log records mentioning ``needles`` while the block runs.
-    """
+    """Drop log records mentioning ``needles`` while the block runs."""
     drop = _DropSecretsFilter(needles)
     handlers = set(logging.getLogger().handlers)
     for logger in list(logging.Logger.manager.loggerDict.values()):
@@ -195,8 +190,7 @@ def _secrets_kept_out_of_logs(*needles):
 
 
 def _verify(session):
-    """Return the TLS ``verify`` value for the sign-in request.
-    """
+    """Return the TLS ``verify`` value for the sign-in request."""
     verify = session.get_config_variable('ca_bundle')
     if verify is None or verify is True:
         return True
@@ -206,8 +200,7 @@ def _verify(session):
 
 
 def _http_get(session, url):
-    """GET ``url`` and return ``(status_code, text)``.
-    """
+    """GET ``url`` and return ``(status_code, text)``."""
     verify = _verify(session)
     http = URLLib3Session(
         verify=verify,
@@ -223,8 +216,7 @@ def _http_get(session, url):
 
 @contextlib.contextmanager
 def _history_paused():
-    """Keep the block's API calls out of ``cli_history``.
-    """
+    """Keep the block's API calls out of ``cli_history``."""
     recorder = get_global_history_recorder()
     was_enabled = bool(getattr(recorder, '_enabled', False))
     if was_enabled:
@@ -236,7 +228,7 @@ def _history_paused():
             recorder.enable()
 
 
-def _federation_token(session, creds, region, account_resolver):
+def _federation_token(session, creds, region):
     try:
         client = session.create_client('sts', region_name=region)
         with _history_paused():
@@ -268,15 +260,11 @@ def _federation_token(session, creds, region, account_resolver):
         )
     except (KeyError, TypeError):
         raise SigninError('unexpected GetFederationToken response')
-    arn = (response.get('FederatedUser') or {}).get('Arn')
-    if account_resolver is not None and arn:
-        account_resolver.set_from_arn(arn)
     return federated
 
 
 def _check_role_session(creds, account_resolver):
-    """Refuse temporary credentials the console will not federate.
-    """
+    """Refuse temporary credentials the console will not federate."""
     if creds.method in ROLE_SESSION_PROVIDERS or account_resolver is None:
         return
     arn = account_resolver.caller_arn()
@@ -326,8 +314,7 @@ def _signin_token(session, creds, host):
 def federation_login_url(
     session, creds, destination, partition, region, account_resolver
 ):
-    """Return the console login URL for ``destination`` as a ``SigninUrl``.
-    """
+    """Return the console login URL for ``destination`` as a ``SigninUrl``."""
     host = urls.signin_host(partition)
     # Checked before any request, so a blank ca_bundle never sends the
     # credentials without certificate verification.
@@ -336,14 +323,13 @@ def federation_login_url(
         _check_role_session(creds, account_resolver)
     else:
         LOG.debug('Long-term keys: calling STS GetFederationToken first')
-        creds = _federation_token(session, creds, region, account_resolver)
+        creds = _federation_token(session, creds, region)
     token = _signin_token(session, creds, host)
     return SigninUrl(host, destination, token)
 
 
 def wrap(session, destination, partition, region, account_resolver):
-    """Return ``(url_to_open, warning or None)``.
-    """
+    """Return ``(url_to_open, warning or None)``."""
     creds, warning = resolve_credentials(session)
     if creds is None:
         LOG.debug('Console sign-in not applied: no credentials')

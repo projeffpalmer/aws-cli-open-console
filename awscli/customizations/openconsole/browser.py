@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -20,7 +20,7 @@ import os
 import sys
 import webbrowser
 
-from awscli.customizations.open_the_console_to_this.signin import SigninUrl
+from awscli.customizations.openconsole.signin import SigninUrl
 from awscli.customizations.sso.utils import original_ld_library_path
 from awscli.customizations.utils import uni_print
 
@@ -106,7 +106,7 @@ def open_beside_output(console_url, open_url, session):
 def _open_browser(open_url):
     """Open ``open_url`` in a new tab; return None or the failure reason.
 
-    The sign-in URL is unhashed here and nowhere else. 
+    The sign-in URL is unhashed here and nowhere else.
     """
     is_signin_url = isinstance(open_url, SigninUrl)
     try:

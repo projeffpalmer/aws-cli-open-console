@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -14,9 +14,9 @@ import json
 import sys
 from urllib.parse import quote_plus
 
-from awscli.customizations.open_the_console_to_this import signin
+from awscli.customizations.openconsole import signin
 from awscli.testutils import mock
-from tests.functional.open_the_console_to_this.support import (
+from tests.functional.openconsole.support import (
     ACCOUNT,
     FEDERATION_RESPONSE,
     LOGIN_PREFIX,
@@ -44,9 +44,7 @@ TABLE_PAGE = (
     'https://us-west-2.console.aws.amazon.com/dynamodbv2/home'
     '?region=us-west-2#table?name=MusicCollection'
 )
-EC2_HOME = (
-    'https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2'
-)
+EC2_HOME = 'https://us-west-2.console.aws.amazon.com/ec2/home?region=us-west-2'
 
 
 class TestOpenConsole(ConsoleCommandTest):
@@ -154,6 +152,43 @@ class TestOpenConsole(ConsoleCommandTest):
             EC2_HOME + '#InstanceDetails:instanceId=i-0123456789abcdef0'
         )
         self.assertEqual(self.stdout_when_opened, [stdout])
+
+    def test_listed_objects_do_not_replace_the_bucket(self):
+        self.parsed_responses = [
+            {
+                'Contents': [{'Key': 'a.txt'}, {'Key': 'dir/b.txt'}],
+                'Name': 'photos',
+                'KeyCount': 2,
+            },
+            FEDERATION_RESPONSE,
+        ]
+        self.run_cmd('s3api list-objects-v2 --bucket photos --open-console')
+        self.assertEqual(
+            self.operation_names(), ['ListObjectsV2', 'GetFederationToken']
+        )
+        self.assert_signed_in(
+            'https://console.aws.amazon.com/s3/buckets/photos'
+            '?region=us-east-1'
+        )
+
+    def test_listed_streams_do_not_replace_the_log_group(self):
+        self.parsed_responses = [
+            {
+                'logStreams': [
+                    {'logStreamName': 'stream-1'},
+                    {'logStreamName': 'stream-2'},
+                ]
+            },
+            FEDERATION_RESPONSE,
+        ]
+        self.run_cmd(
+            'logs describe-log-streams --log-group-name app '
+            '--region us-west-2 --open-console'
+        )
+        self.assert_signed_in(
+            'https://us-west-2.console.aws.amazon.com/cloudwatch/home'
+            '?region=us-west-2#logsV2:log-groups/log-group/app'
+        )
 
     def test_custom_command_opens_from_its_arguments(self):
         self.parsed_responses = [{}, FEDERATION_RESPONSE]

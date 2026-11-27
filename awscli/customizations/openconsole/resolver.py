@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -12,9 +12,8 @@
 # language governing permissions and limitations under the License.
 """Build an AWS console URL for a CLI command at runtime.
 
-URL shapes follow the a9s consolelink helpers: the partition console
-host, a regional or global console URL, and ``/go/view`` for an ARN
-when no service page is known.
+A URL uses the partition console host, with or without a region
+subdomain, and ``/go/view`` for an ARN when no service page is known.
 """
 
 import logging
@@ -23,8 +22,8 @@ from urllib.parse import quote, quote_plus, urlparse
 
 from botocore import xform_name
 
-from awscli.customizations.open_the_console_to_this import args, params
-from awscli.customizations.open_the_console_to_this import urls as _urls
+from awscli.customizations.openconsole import args, params
+from awscli.customizations.openconsole import urls as _urls
 
 LOG = logging.getLogger(__name__)
 
@@ -32,17 +31,18 @@ FALLBACK_SOURCE = 'fallback'
 CONSOLE_SOURCE = 'console'
 GO_VIEW_SOURCE = 'go-view'
 
-# Hosts Valid accepts, as an exact match or as the suffix of a subdomain.
-# The same three hosts as a9s consolelink.Domain.
+# Hosts ``valid`` accepts, as an exact match or as the suffix of a subdomain.
 CONSOLE_HOSTS = (
     'console.aws.amazon.com',
     'console.amazonaws-us-gov.com',
     'console.amazonaws.cn',
 )
+# No console URL longer than this is returned. A list page whose filter
+# would not fit opens without the filter.
+MAX_URL_LENGTH = 2000
 
 _CLI_ONLY = frozenset(['configure', 'history'])
 _MODEL_NAMES = {'s3api': 's3'}
-_REFERENCE_ONLY = _CLI_ONLY
 
 _S3_COMMANDS = frozenset(
     ['cp', 'ls', 'mb', 'mv', 'presign', 'rb', 'rm', 'sync', 'website']
@@ -68,6 +68,7 @@ _S3_FLAGS = frozenset(
         'validate-same-s3-paths',
     ]
 )
+_LOGS_TAIL_FLAGS = frozenset(['follow'])
 _S3_POSITIONAL = {
     'cp': ['paths'],
     'ls': ['paths'],
@@ -154,9 +155,7 @@ _TABLE_OPS = frozenset(
 _ROLE_OPS = frozenset(
     ['create-role', 'delete-role', 'get-role', 'list-roles', 'update-role']
 )
-_USER_OPS = frozenset(
-    ['create-user', 'delete-user', 'get-user', 'list-users']
-)
+_USER_OPS = frozenset(['create-user', 'delete-user', 'get-user', 'list-users'])
 _QUEUE_OPS = frozenset(
     [
         'create-queue',
@@ -183,48 +182,18 @@ _SPEC_CACHE = {}
 
 
 class Context:
-    """Where the console is: region, partition and a lazy account id."""
+    """Where the console is: region and partition."""
 
-    def __init__(self, region, partition, account_id=None, session=None):
+    def __init__(self, region, partition, session=None):
         self.region = region
         self.partition = partition
         self.session = session
-        func = account_id if account_id is not None else _none
-        self._account = _LazyAccount(func)
-
-    def account(self):
-        """Return the account id, calling the supplied callable once."""
-        return self._account.get()
 
     def __repr__(self):
         return (
             f'Context(region={self.region!r}, '
             f'partition={self.partition!r})'
         )
-
-
-def _none():
-    return None
-
-
-class _LazyAccount:
-    """Call the account callable at most once."""
-
-    def __init__(self, func):
-        self._func = func
-        self._called = False
-        self._value = None
-
-    def get(self):
-        if not self._called:
-            self._called = True
-            try:
-                value = self._func()
-            except Exception:
-                LOG.debug('Account id lookup failed', exc_info=True)
-                value = None
-            self._value = str(value) if value else None
-        return self._value
 
 
 class Decision:
@@ -308,25 +277,18 @@ def global_url(region, tail, partition=None):
 
 def go_view(region, arn, partition=None):
     """Console URL for ``arn`` via AWS's ``/go/view`` resolver."""
-    return global_url(
-        region, 'go/view?arn=' + quote_plus(arn), partition
-    )
+    return global_url(region, 'go/view?arn=' + quote_plus(arn), partition)
 
 
 def go_view_service(region, service, partition=None):
     """Console URL for a service name via ``/go/view``."""
-    tail = 'go/view?service=' + quote_plus(service) + '&region=' + quote_plus(
-        region
+    tail = (
+        'go/view?service='
+        + quote_plus(service)
+        + '&region='
+        + quote_plus(region)
     )
     return global_url(region, tail, partition)
-
-
-def account_from_arn(ref):
-    """Account id in ``ref``, or ``''`` when ``ref`` is not an ARN."""
-    parts = _arn_fields(ref)
-    if parts is None:
-        return ''
-    return parts[4]
 
 
 def valid(url):
@@ -442,11 +404,15 @@ def _resolve(command, remaining, ctx, response, after_run):
     builder = _BUILDERS.get(command)
     if builder is not None:
         decision = builder(parsed, ctx, response, after_run)
-        if decision is not None and valid(decision.url):
+        if (
+            decision is not None
+            and valid(decision.url)
+            and _fits(decision.url)
+        ):
             return decision
     arn = _one_arn(command, parsed, response)
-    if arn:
-        url = go_view(ctx.region, arn, ctx.partition)
+    url = go_view(ctx.region, arn, ctx.partition) if arn else None
+    if url and _fits(url):
         return _make(
             url,
             _path(command, parsed.operation),
@@ -489,6 +455,10 @@ def _make(url, path, source, verb, params_used, explanation):
     return Decision(url, path, source, verb, params_used, explanation)
 
 
+def _fits(url):
+    return len(url) <= MAX_URL_LENGTH
+
+
 def _console_home(ctx, path, explanation):
     host = _urls.console_host(ctx.partition)
     return _make(
@@ -523,6 +493,8 @@ def _syntax(service, operation, tokens, session):
     flags, multi = _model_spec(session, service, operation)
     if service == 's3':
         flags = set(flags) | set(_S3_FLAGS)
+    elif service == 'logs' and operation == 'tail':
+        flags = set(flags) | set(_LOGS_TAIL_FLAGS)
     else:
         flags = set(flags)
     multi = set(multi) | (set(_option_names(tokens)) & set(_MULTI_OPTIONS))
@@ -789,17 +761,18 @@ def _page(ctx, parsed, url, verb, used, detail):
     )
 
 
-def _s3_buckets(ctx, parsed, names=()):
+def _s3_buckets(ctx, parsed):
     tail = f's3/buckets?region={_region_query(ctx)}'
-    used = {}
-    detail = 'opened the bucket list'
-    if len(names) > 1:
-        selection = _select_filter('', 'name', names).split('?', 1)[1]
-        tail += '&' + selection
-        used = {'bucket': list(names)}
-        detail = 'opened the bucket list for several ids'
     url = global_url(ctx.region, tail, ctx.partition)
-    return _page(ctx, parsed, url, 'list', used, detail)
+    return _page(ctx, parsed, url, 'list', {}, 'opened the bucket list')
+
+
+def _s3_create_bucket(ctx, parsed):
+    tail = f's3/bucket/create?region={_region_query(ctx)}'
+    url = global_url(ctx.region, tail, ctx.partition)
+    return _page(
+        ctx, parsed, url, 'create', {}, 'opened the create bucket page'
+    )
 
 
 def _s3_bucket(ctx, parsed, bucket, prefix=None, tab=None):
@@ -856,22 +829,26 @@ def _s3_choice(ctx, parsed, bucket, prefix, key, recursive, tab=None):
 
 
 def _build_s3(parsed, ctx, response, after_run):
-    del response, after_run
+    del response
     operation = parsed.operation
     if operation not in _S3_COMMANDS:
         return _s3_buckets(ctx, parsed)
     paths = _s3_paths(parsed)
+    if operation == 'mb' and not paths and not after_run:
+        return _s3_create_bucket(ctx, parsed)
     recursive = 'recursive' in parsed.options
     key = None
     tab = None
     if operation in ('cp', 'mv'):
         bucket = params.s3_target_bucket(paths)
-        prefix = params.s3_target_prefix(paths)
-        if not recursive:
+        if recursive:
+            prefix = params.s3_target_dir(paths)
+        else:
+            prefix = params.s3_target_prefix(paths)
             key = params.s3_target_object(paths)
     elif operation == 'sync':
         bucket = params.s3_target_bucket(paths)
-        prefix = params.s3_target_prefix(paths)
+        prefix = params.s3_target_dir(paths)
     elif operation == 'rm':
         bucket = params.s3uri_bucket(paths)
         prefix = params.s3uri_prefix(paths)
@@ -907,18 +884,12 @@ def _first_plain(parsed, response, *names):
 def _build_s3api(parsed, ctx, response, after_run):
     del after_run
     bucket, bucket_arn = _first_plain(parsed, response, 'bucket')
-    key, key_arn = _first_plain(parsed, response, 'key')
-    prefix, _prefix_arn = _first_plain(parsed, response, 'prefix')
+    # A key or prefix is read from the typed arguments only: a response
+    # can list many objects, and none of them is the command's page.
+    key, key_arn = _first_plain(parsed, None, 'key')
+    prefix, _prefix_arn = _first_plain(parsed, None, 'prefix')
     if (bucket_arn or key_arn) and not bucket and not key:
         return None
-    if not bucket and not key and not prefix and response is not None:
-        names = [
-            value
-            for value in find_values(response, 'name')
-            if not _is_arn(value)
-        ]
-        if len(names) > 1:
-            return _s3_buckets(ctx, parsed, names)
     return _s3_choice(ctx, parsed, bucket, prefix, key, False)
 
 
@@ -936,7 +907,14 @@ class _Ec2Resource:
     """One EC2 or VPC console list, and the id that selects rows on it."""
 
     def __init__(
-        self, names, pattern, detail, listing, filter_key, nouns, vpc=False,
+        self,
+        names,
+        pattern,
+        detail,
+        listing,
+        filter_key,
+        nouns,
+        vpc=False,
         exclude=(),
     ):
         self.names = names
@@ -956,25 +934,15 @@ class _Ec2Resource:
 
     def noun_length(self, operation):
         padded = f'-{operation}'
-        lengths = [
-            len(noun) for noun in self.nouns if f'-{noun}' in padded
-        ]
+        lengths = [len(noun) for noun in self.nouns if f'-{noun}' in padded]
         return max(lengths, default=-1)
-
-
-def _ec2_resource(
-    names, pattern, detail, listing, filter_key, nouns, vpc=False, exclude=(),
-):
-    return _Ec2Resource(
-        names, pattern, detail, listing, filter_key, nouns, vpc, exclude
-    )
 
 
 # Longer nouns are listed first only for readability. Matching picks the
 # longest noun that occurs in the operation, so ``create-vpc-endpoint``
 # is an endpoint and ``create-vpc`` is a VPC.
 _EC2_RESOURCES = (
-    _ec2_resource(
+    _Ec2Resource(
         ('vpc-peering-connection-ids', 'vpc-peering-connection-id'),
         _PEERING,
         'PeeringConnectionDetails:vpcPeeringConnectionId={id}',
@@ -983,7 +951,7 @@ _EC2_RESOURCES = (
         ('vpc-peering-connection',),
         vpc=True,
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('vpc-endpoint-ids', 'vpc-endpoint-id'),
         _VPCE,
         'EndpointDetails:vpcEndpointId={id}',
@@ -992,7 +960,7 @@ _EC2_RESOURCES = (
         ('vpc-endpoint',),
         vpc=True,
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('nat-gateway-ids', 'nat-gateway-id'),
         _NAT,
         'NatGatewayDetails:natGatewayId={id}',
@@ -1001,7 +969,7 @@ _EC2_RESOURCES = (
         ('nat-gateway',),
         vpc=True,
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('internet-gateway-ids', 'internet-gateway-id'),
         _IGW,
         'InternetGateway:internetGatewayId={id}',
@@ -1010,7 +978,7 @@ _EC2_RESOURCES = (
         ('internet-gateway',),
         vpc=True,
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('network-acl-ids', 'network-acl-id'),
         _ACL,
         'NetworkAclDetails:networkAclId={id}',
@@ -1019,7 +987,7 @@ _EC2_RESOURCES = (
         ('network-acl',),
         vpc=True,
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('route-table-ids', 'route-table-id'),
         _ROUTE_TABLE,
         'RouteTableDetails:routeTableId={id}',
@@ -1028,15 +996,15 @@ _EC2_RESOURCES = (
         ('route-table',),
         vpc=True,
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('network-interface-ids', 'network-interface-id'),
         _ENI,
-        'NetworkInterfaceDetails:networkInterfaceId={id}',
+        'NetworkInterface:networkInterfaceId={id}',
         'NetworkInterfaces:',
         'networkInterfaceId',
         ('network-interface',),
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('group-ids', 'group-id'),
         _SECURITY_GROUP,
         'SecurityGroup:groupId={id}',
@@ -1045,7 +1013,7 @@ _EC2_RESOURCES = (
         ('security-group',),
         vpc=True,
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('snapshot-ids', 'snapshot-id'),
         _SNAPSHOT,
         'SnapshotDetails:snapshotId={id}',
@@ -1053,7 +1021,7 @@ _EC2_RESOURCES = (
         'snapshotId',
         ('snapshot',),
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('volume-ids', 'volume-id'),
         _VOLUME,
         'VolumeDetails:volumeId={id}',
@@ -1061,7 +1029,7 @@ _EC2_RESOURCES = (
         'volumeId',
         ('volume',),
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('image-ids', 'image-id'),
         _IMAGE,
         'ImageDetails:imageId={id}',
@@ -1069,7 +1037,7 @@ _EC2_RESOURCES = (
         'imageId',
         ('image',),
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('subnet-ids', 'subnet-id'),
         _SUBNET,
         'SubnetDetails:subnetId={id}',
@@ -1078,7 +1046,7 @@ _EC2_RESOURCES = (
         ('subnet',),
         vpc=True,
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('vpc-ids', 'vpc-id'),
         _VPC,
         'VpcDetails:VpcId={id}',
@@ -1087,15 +1055,15 @@ _EC2_RESOURCES = (
         ('vpc',),
         vpc=True,
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('allocation-ids', 'allocation-id'),
         _ALLOCATION,
-        'AddressDetails:allocationId={id}',
+        'ElasticIpDetails:AllocationId={id}',
         'Addresses:',
         'allocationId',
         ('address',),
     ),
-    _ec2_resource(
+    _Ec2Resource(
         ('instance-ids', 'instance-id'),
         _INSTANCE,
         'InstanceDetails:instanceId={id}',
@@ -1112,10 +1080,10 @@ _EC2_RESOURCES = (
     ),
     # Key names match ordinary strings, so this stays last and cannot
     # steal a command that already named a resource id.
-    _ec2_resource(
+    _Ec2Resource(
         ('key-names', 'key-name'),
         _KEY_NAME,
-        'KeyPairDetails:keyName={id}',
+        'KeyPairs:keyName={id}',
         'KeyPairs:',
         'keyName',
         ('key-pair',),
@@ -1134,8 +1102,8 @@ def _csv_filter(listing, key, ids):
 def _select_filter(listing, key, ids):
     """A list page whose property filter ORs an exact match of each id.
 
-    Lambda, IAM, DynamoDB, CloudFormation and SQS keep this state in the
-    hash query (``fo=or`` plus one ``k``/``o``/``v`` triple per id).
+    The Lambda function list keeps this state in the hash query
+    (``fo=or`` plus one ``k``/``o``/``v`` triple per id).
     """
     parts = ['fo=or']
     for index, value in enumerate(ids):
@@ -1174,13 +1142,18 @@ def _open_ec2_resource(ctx, parsed, response, resource, ids_only=False):
             f'opened {ids[0]}',
         )
     if len(ids) > 1:
-        return page(
+        decision = page(
             ctx,
             parsed,
             _csv_filter(resource.listing, resource.filter_key, ids),
             'list',
             {resource.names[0]: ids},
             'opened the list for several ids',
+        )
+        if _fits(decision.url):
+            return decision
+        return page(
+            ctx, parsed, resource.listing, 'list', {}, 'opened the list'
         )
     if _arn_only(raw) or ids_only or not resource.matches(parsed.operation):
         return None
@@ -1228,13 +1201,18 @@ def _run_instances(parsed, ctx, response, after_run):
             f'opened {ids[0]}',
         )
     if len(ids) > 1:
-        return _ec2_fragment(
+        decision = _ec2_fragment(
             ctx,
             parsed,
             _csv_filter('Instances:', 'instanceId', ids),
             'list',
             {'instance-id': ids},
             'opened the instance list for several ids',
+        )
+        if _fits(decision.url):
+            return decision
+        return _ec2_fragment(
+            ctx, parsed, 'Instances:', 'list', {}, 'opened the instance list'
         )
     if _arn_only(raw):
         return None
@@ -1280,13 +1258,23 @@ def _build_lambda(parsed, ctx, response, after_run):
         )
     if len(names) > 1:
         fragment = _select_filter('/functions', 'functionName', names)
-        return _page(
+        decision = _page(
             ctx,
             parsed,
             _regional_page(ctx, 'lambda/home', fragment),
             'list',
             {'function-name': names},
             'opened the function list for several ids',
+        )
+        if _fits(decision.url):
+            return decision
+        return _page(
+            ctx,
+            parsed,
+            _regional_page(ctx, 'lambda/home', '/functions'),
+            'list',
+            {},
+            'opened the function list',
         )
     if parsed.operation in _LAMBDA_OPS:
         creating = parsed.operation == 'create-function' and not names
@@ -1325,14 +1313,13 @@ def _build_dynamodb(parsed, ctx, response, after_run):
         return None
     names = [value for value in raw if not _is_arn(value)]
     if len(names) > 1:
-        fragment = _select_filter('table', 'tableName', names)
         return _page(
             ctx,
             parsed,
-            _regional_page(ctx, 'dynamodbv2/home', fragment),
+            _regional_page(ctx, 'dynamodbv2/home', 'table'),
             'list',
-            {'table-name': names},
-            'opened the table list for several ids',
+            {},
+            'opened the table list',
         )
     if len(names) == 1:
         fragment = 'table?name=' + _quote_id(names[0])
@@ -1388,28 +1375,22 @@ def _plain_names(parsed, response, name):
 
 def _build_iam(parsed, ctx, response, after_run):
     del after_run
-    roles = _plain_names(parsed, response, 'role-name')
-    users = _plain_names(parsed, response, 'user-name')
+    # A response names a role or user only for a role or user command;
+    # elsewhere the same key belongs to a nested resource.
+    role_response = response if parsed.operation in _ROLE_OPS else None
+    user_response = response if parsed.operation in _USER_OPS else None
+    roles = _plain_names(parsed, role_response, 'role-name')
+    users = _plain_names(parsed, user_response, 'user-name')
     if roles is None or users is None:
         return None
     if len(roles) > 1 and parsed.operation not in _USER_OPS:
         return _iam_page(
-            ctx,
-            parsed,
-            _select_filter('/roles', 'roleName', roles),
-            'list',
-            {'role-name': roles},
-            'opened the role list for several ids',
+            ctx, parsed, '/roles', 'list', {}, 'opened the role list'
         )
     role = roles[0] if roles else None
     if len(users) > 1:
         return _iam_page(
-            ctx,
-            parsed,
-            _select_filter('/users', 'userName', users),
-            'list',
-            {'user-name': users},
-            'opened the user list for several ids',
+            ctx, parsed, '/users', 'list', {}, 'opened the user list'
         )
     user = users[0] if users else None
     if role and parsed.operation not in _USER_OPS:
@@ -1466,12 +1447,10 @@ def _build_sqs(parsed, ctx, response, after_run):
         return _page(
             ctx,
             parsed,
-            _regional_page(
-                ctx, 'sqs/v3/home', _select_filter('/queues', 'queueUrl', urls)
-            ),
+            _regional_page(ctx, 'sqs/v3/home', '/queues'),
             'list',
-            {'queue-url': urls},
-            'opened the queue list for several ids',
+            {},
+            'opened the queue list',
         )
     if len(urls) == 1:
         fragment = '/queues/' + _quote_id(urls[0])
@@ -1512,14 +1491,13 @@ def _build_cloudformation(parsed, ctx, response, after_run):
         return None
     names = [value for value in raw if not _is_arn(value)]
     if len(names) > 1:
-        fragment = _select_filter('stacks', 'stackName', names)
         return _page(
             ctx,
             parsed,
-            _regional_page(ctx, 'cloudformation/home', fragment),
+            _regional_page(ctx, 'cloudformation/home', 'stacks'),
             'list',
-            {'stack-name': names},
-            'opened the stack list for several ids',
+            {},
+            'opened the stack list',
         )
     if len(names) == 1:
         fragment = 'stacks/stackinfo?stackId=' + _quote_id(names[0])
@@ -1564,20 +1542,13 @@ def _build_cloudformation(parsed, ctx, response, after_run):
 def _build_logs(parsed, ctx, response, after_run):
     del after_run
     groups = _log_group_names(parsed, response)
-    stream, stream_arn = _first_plain(parsed, response, 'log-stream-name')
+    # A stream is read from the typed arguments only: a response can list
+    # many streams, and none of them is the command's page.
+    stream, stream_arn = _first_plain(parsed, None, 'log-stream-name')
     if groups is None or (stream_arn and not groups):
         return None
     if len(groups) > 1 and not stream:
-        joined = ','.join(_quote_id(value) for value in groups)
-        fragment = 'logsV2:log-groups$3FlogGroupNameFilter$3D' + joined
-        return _page(
-            ctx,
-            parsed,
-            _regional_page(ctx, 'cloudwatch/home', fragment),
-            'list',
-            {'log-group-name': groups},
-            'opened the log group list for several ids',
-        )
+        return _home_logs(parsed, ctx)
     group = groups[0] if groups else None
     if group and stream:
         fragment = (
@@ -1607,28 +1578,23 @@ def _build_logs(parsed, ctx, response, after_run):
     if parsed.operation is None or parsed.operation.startswith(
         ('describe-log', 'get-log', 'filter-log', 'list-')
     ):
-        return _page(
-            ctx,
-            parsed,
-            _regional_page(ctx, 'cloudwatch/home'),
-            'list',
-            {},
-            'opened CloudWatch Logs',
-        )
+        return _home_logs(parsed, ctx)
     return None
 
 
 def _log_group_names(parsed, response):
     """Log group names, or None when the only identifier is an ARN."""
+    if parsed.operation == 'tail' and parsed.positionals:
+        # ``logs tail`` takes the group name or ARN as a positional.
+        group = parsed.positionals[0]
+        return None if _is_arn(group) else [group]
     values = list(values_for(parsed, response, 'log-group-name'))
     if _arn_only(values):
         return None
     names = [value for value in values if not _is_arn(value)]
     if names:
         return names
-    ident, ident_arn = _first_plain(
-        parsed, response, 'log-group-identifier'
-    )
+    ident, ident_arn = _first_plain(parsed, response, 'log-group-identifier')
     if ident_arn:
         return None
     if ident and _is_arn(ident):
@@ -1652,10 +1618,6 @@ _BUILDERS = {
 }
 
 
-def _home_ec2(parsed, ctx):
-    return _ec2_home(parsed, ctx)
-
-
 def _home_lambda(parsed, ctx):
     return _page(
         ctx,
@@ -1671,10 +1633,10 @@ def _home_logs(parsed, ctx):
     return _page(
         ctx,
         parsed,
-        _regional_page(ctx, 'cloudwatch/home'),
-        'home',
+        _regional_page(ctx, 'cloudwatch/home', 'logsV2:log-groups'),
+        'list',
         {},
-        'opened CloudWatch Logs',
+        'opened the log group list',
     )
 
 
@@ -1688,7 +1650,7 @@ _HOMES = {
         'opened the CloudFormation home page',
     ),
     'dynamodb': _dynamodb_home,
-    'ec2': _home_ec2,
+    'ec2': _ec2_home,
     'iam': _iam_home,
     'lambda': _home_lambda,
     'logs': _home_logs,

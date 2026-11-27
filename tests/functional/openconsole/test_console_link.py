@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -17,8 +17,8 @@ import tempfile
 from urllib.parse import quote_plus
 
 from awscli.clidriver import AWSCLIEntryPoint, create_clidriver
-from awscli.customizations.open_the_console_to_this import docs, signin
-from tests.functional.open_the_console_to_this.support import (
+from awscli.customizations.openconsole import docs, signin
+from tests.functional.openconsole.support import (
     ACCOUNT,
     FEDERATION_RESPONSE,
     LOGIN_PREFIX,
@@ -38,7 +38,7 @@ NO_CREDENTIALS_WARNING = (
 )
 
 
-class TestInConsole(ConsoleCommandTest):
+class TestConsoleLink(ConsoleCommandTest):
     def setUp(self):
         super().setUp()
         self.parsed_response = FEDERATION_RESPONSE
@@ -169,6 +169,12 @@ class TestInConsole(ConsoleCommandTest):
             's3 help --console-link', 'https://docs.aws.amazon.com/s3/'
         )
 
+    def test_service_help_without_a_landing_page_uses_the_reference(self):
+        self.assert_docs(
+            'logs help --console-link',
+            'https://docs.aws.amazon.com/cli/latest/reference/logs/index.html',
+        )
+
     def test_subcommand_help(self):
         self.assert_docs(
             's3 ls help --console-link',
@@ -262,10 +268,28 @@ class TestInConsole(ConsoleCommandTest):
             'https://console.aws.amazon.com/s3/buckets?region=us-east-1\n',
         )
 
-    def test_service_without_a_built_in_page_uses_go_view(self):
-        stdout, _, _ = self.run_cmd(
-            'sts get-caller-identity --console-link'
+    def test_s3_mb_without_a_bucket_opens_the_create_page(self):
+        stdout, _, _ = self.run_cmd('s3 mb --console-link')
+        self.assertEqual(
+            stdout,
+            'https://console.aws.amazon.com/s3/bucket/create'
+            '?region=us-east-1\n',
         )
+
+    def test_logs_tail_opens_the_log_group(self):
+        stdout, _, _ = self.run_cmd(
+            'logs tail /aws/lambda/f --follow --region us-west-2 '
+            '--console-link'
+        )
+        self.assertEqual(
+            stdout,
+            'https://us-west-2.console.aws.amazon.com/cloudwatch/home'
+            '?region=us-west-2#logsV2:log-groups/log-group/'
+            '%2Faws%2Flambda%2Ff\n',
+        )
+
+    def test_service_without_a_built_in_page_uses_go_view(self):
+        stdout, _, _ = self.run_cmd('sts get-caller-identity --console-link')
         self.assertEqual(
             stdout,
             'https://console.aws.amazon.com/go/view?service=sts'

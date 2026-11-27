@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -15,7 +15,11 @@
 
 class ParsedArgs:
     """The result of :func:`parse_remaining`.
-    ``options`` maps an option name without its leading dashes
+
+    ``options`` maps an option name, without its leading dashes, to the
+    values typed for it. ``positionals`` holds the other tokens in order,
+    and ``positional_values`` groups them by positional name. ``help`` is
+    true when the last positional is ``help``.
     """
 
     def __init__(self):
@@ -34,8 +38,7 @@ class ParsedArgs:
 
 
 def parse_remaining(tokens, positional_names, flags=(), scalars=()):
-    """Parse ``tokens`` into options and positionals.
-    """
+    """Parse ``tokens`` into options and positionals."""
     flags = frozenset(flags or ())
     scalars = frozenset(scalars or ())
     result = ParsedArgs()
@@ -44,7 +47,7 @@ def parse_remaining(tokens, positional_names, flags=(), scalars=()):
     only_positionals = False
     for token in tokens:
         if only_positionals:
-            _add_positional(result, token)
+            result.positionals.append(token)
         elif token == '--':
             only_positionals = True
             current = None
@@ -65,16 +68,14 @@ def parse_remaining(tokens, positional_names, flags=(), scalars=()):
                 if room == 0:
                     current = None
         else:
-            _add_positional(result, token)
+            result.positionals.append(token)
+    if result.positionals and result.positionals[-1] == 'help':
+        # ``help`` asks for help only as the last positional. Anywhere
+        # else it is a value, such as a file that is named ``help``.
+        result.positionals.pop()
+        result.help = True
     _assign_positionals(result, list(positional_names or ()))
     return result
-
-
-def _add_positional(result, token):
-    if token == 'help':
-        result.help = True
-    else:
-        result.positionals.append(token)
 
 
 def _assign_positionals(result, names):

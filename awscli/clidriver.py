@@ -604,13 +604,13 @@ class CLIDriver:
             HISTORY_RECORDER.record('CLI_VERSION', self._cli_version(), 'CLI')
             HISTORY_RECORDER.record('CLI_ARGUMENTS', args, 'CLI')
             if getattr(parsed_args, 'console_link', False):
-                from awscli.customizations.open_the_console_to_this import (
+                from awscli.customizations.openconsole import (
                     open_console,
                 )
 
                 return open_console(self.session, parsed_args, remaining)
             if getattr(parsed_args, 'open_console', False):
-                from awscli.customizations.open_the_console_to_this import (
+                from awscli.customizations.openconsole import (
                     run_and_open,
                 )
 

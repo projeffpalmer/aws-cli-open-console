@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -14,8 +14,8 @@ import io
 import os
 import webbrowser
 
-from awscli.customizations.open_the_console_to_this import browser
-from awscli.customizations.open_the_console_to_this.signin import (
+from awscli.customizations.openconsole import browser
+from awscli.customizations.openconsole.signin import (
     SigninUrl,
     hashed,
 )

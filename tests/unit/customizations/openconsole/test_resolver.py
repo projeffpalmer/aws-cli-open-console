@@ -1,4 +1,4 @@
-# Copyright 2012-2013 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"). You
 # may not use this file except in compliance with the License. A copy of
@@ -12,9 +12,9 @@
 # language governing permissions and limitations under the License.
 from urllib.parse import quote_plus
 
-from awscli.customizations.open_the_console_to_this.resolver import (
+from awscli.customizations.openconsole.resolver import (
+    MAX_URL_LENGTH,
     Context,
-    account_from_arn,
     domain_for_region,
     global_url,
     go_view,
@@ -49,9 +49,7 @@ class TestDomain(unittest.TestCase):
 
 class TestUrlBuilders(unittest.TestCase):
     def test_regional_uses_a_region_subdomain(self):
-        tail = (
-            'ec2/home?region=us-east-1#InstanceDetails:instanceId=i-0abc123'
-        )
+        tail = 'ec2/home?region=us-east-1#InstanceDetails:instanceId=i-0abc123'
         self.assertEqual(
             regional('us-east-1', tail),
             'https://us-east-1.console.aws.amazon.com/' + tail,
@@ -109,23 +107,6 @@ class TestUrlBuilders(unittest.TestCase):
                 go_view(region, arn),
                 global_url(region, 'go/view?arn=' + quote_plus(arn)),
             )
-
-
-class TestAccountFromArn(unittest.TestCase):
-    def test_account_field(self):
-        cases = (
-            (
-                'arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123',
-                '123456789012',
-            ),
-            ('arn:aws:iam::123456789012:role/my-role', '123456789012'),
-            ('arn:aws:s3:::my-bucket', ''),
-            ('not-an-arn', ''),
-            ('', ''),
-            ('arn:aws:ec2', ''),
-        )
-        for arn, account in cases:
-            self.assertEqual(account_from_arn(arn), account, arn)
 
 
 class TestValid(unittest.TestCase):
@@ -313,7 +294,7 @@ class TestResolve(unittest.TestCase):
             '&k1=functionName&o1=%3D&v1=beta',
         )
 
-    def test_several_roles_open_the_filtered_list(self):
+    def test_several_roles_open_the_role_list(self):
         decision = resolve(
             'iam',
             ['list-roles'],
@@ -324,13 +305,10 @@ class TestResolve(unittest.TestCase):
             after_run=True,
         )
         self.assertEqual(
-            decision.url,
-            'https://console.aws.amazon.com/iam/home#/roles?fo=or'
-            '&k0=roleName&o0=%3D&v0=Admin'
-            '&k1=roleName&o1=%3D&v1=ReadOnly',
+            decision.url, 'https://console.aws.amazon.com/iam/home#/roles'
         )
 
-    def test_several_queues_open_the_filtered_list(self):
+    def test_several_queues_open_the_queue_list(self):
         first = 'https://sqs.us-west-2.amazonaws.com/123/a'
         second = 'https://sqs.us-west-2.amazonaws.com/123/b'
         decision = resolve(
@@ -340,30 +318,27 @@ class TestResolve(unittest.TestCase):
             response={'QueueUrls': [first, second]},
             after_run=True,
         )
-        self.assertIn('#/queues?fo=or', decision.url)
-        self.assertIn('k0=queueUrl', decision.url)
-        self.assertIn('v0=' + quote_plus(first), decision.url)
-        self.assertIn('v1=' + quote_plus(second), decision.url)
+        self.assertEqual(
+            decision.url,
+            f'https://{REGION}.console.aws.amazon.com/sqs/v3/home'
+            f'?region={REGION}#/queues',
+        )
 
-    def test_several_stacks_open_the_filtered_list(self):
+    def test_several_stacks_open_the_stack_list(self):
         decision = resolve(
             'cloudformation',
             ['list-stacks'],
             ctx(),
-            response={
-                'Stacks': [{'StackName': 'one'}, {'StackName': 'two'}]
-            },
+            response={'Stacks': [{'StackName': 'one'}, {'StackName': 'two'}]},
             after_run=True,
         )
         self.assertEqual(
             decision.url,
             f'https://{REGION}.console.aws.amazon.com/cloudformation/home'
-            f'?region={REGION}#stacks?fo=or'
-            '&k0=stackName&o0=%3D&v0=one'
-            '&k1=stackName&o1=%3D&v1=two',
+            f'?region={REGION}#stacks',
         )
 
-    def test_several_log_groups_open_the_filtered_list(self):
+    def test_several_log_groups_open_the_log_group_list(self):
         decision = resolve(
             'logs',
             ['describe-log-groups'],
@@ -379,27 +354,23 @@ class TestResolve(unittest.TestCase):
         self.assertEqual(
             decision.url,
             f'https://{REGION}.console.aws.amazon.com/cloudwatch/home'
-            f'?region={REGION}#logsV2:log-groups'
-            '$3FlogGroupNameFilter$3Dapp,api',
+            f'?region={REGION}#logsV2:log-groups',
         )
 
-    def test_several_buckets_open_the_filtered_list(self):
+    def test_several_buckets_open_the_bucket_list(self):
         decision = resolve(
             's3api',
             ['list-buckets'],
             ctx(),
-            response={
-                'Buckets': [{'Name': 'photos'}, {'Name': 'logs'}]
-            },
+            response={'Buckets': [{'Name': 'photos'}, {'Name': 'logs'}]},
             after_run=True,
         )
-        self.assertIn('/s3/buckets?region=', decision.url)
-        self.assertIn('fo=or', decision.url)
-        self.assertIn('k0=name', decision.url)
-        self.assertIn('v0=photos', decision.url)
-        self.assertIn('v1=logs', decision.url)
+        self.assertEqual(
+            decision.url,
+            f'https://console.aws.amazon.com/s3/buckets?region={REGION}',
+        )
 
-    def test_several_tables_open_the_filtered_list(self):
+    def test_several_tables_open_the_table_list(self):
         decision = resolve(
             'dynamodb',
             ['list-tables'],
@@ -410,9 +381,7 @@ class TestResolve(unittest.TestCase):
         self.assertEqual(
             decision.url,
             f'https://{REGION}.console.aws.amazon.com/dynamodbv2/home'
-            f'?region={REGION}#table?fo=or'
-            '&k0=tableName&o0=%3D&v0=Music'
-            '&k1=tableName&o1=%3D&v1=Orders',
+            f'?region={REGION}#table',
         )
 
     def test_lambda_function_named_help(self):
@@ -428,9 +397,7 @@ class TestResolve(unittest.TestCase):
         )
 
     def test_iam_role_is_global(self):
-        decision = resolve(
-            'iam', ['get-role', '--role-name', 'Admin'], ctx()
-        )
+        decision = resolve('iam', ['get-role', '--role-name', 'Admin'], ctx())
         self.assertEqual(
             decision.url,
             'https://console.aws.amazon.com/iam/home#/roles/details/Admin',
@@ -438,9 +405,7 @@ class TestResolve(unittest.TestCase):
 
     def test_arn_uses_go_view(self):
         arn = 'arn:aws:kms:us-west-2:123456789012:key/abcd-1234'
-        decision = resolve(
-            'kms', ['describe-key', '--key-id', arn], ctx()
-        )
+        decision = resolve('kms', ['describe-key', '--key-id', arn], ctx())
         self.assertEqual(decision.url, go_view(REGION, arn, 'aws'))
         self.assertEqual(decision.source, 'go-view')
 
@@ -478,29 +443,434 @@ class TestResolve(unittest.TestCase):
             '?region=us-gov-west-1',
         )
 
-    def test_account_callable_is_lazy(self):
-        calls = []
-
-        def account():
-            calls.append(1)
-            return '123456789012'
-
-        context = Context(REGION, 'aws', account_id=account)
-        resolve('s3', ['ls'], context)
-        self.assertEqual(calls, [])
-        self.assertEqual(context.account(), '123456789012')
-        self.assertEqual(context.account(), '123456789012')
-        self.assertEqual(calls, [1])
-
     def test_help_is_not_an_option_value(self):
-        from awscli.customizations.open_the_console_to_this.resolver import (
+        from awscli.customizations.openconsole.resolver import (
             is_help,
         )
 
         self.assertTrue(is_help('s3', ['ls', '--recursive', 'help']))
-        self.assertFalse(
-            is_help('s3', ['ls', '--page-size', 'help'])
-        )
+        self.assertFalse(is_help('s3', ['ls', '--page-size', 'help']))
         self.assertFalse(
             is_help('lambda', ['get-function', '--function-name', 'help'])
+        )
+
+
+HOME = f'https://{REGION}.console.aws.amazon.com'
+EC2 = f'{HOME}/ec2/home?region={REGION}'
+VPC = f'{HOME}/vpc/home?region={REGION}'
+LAMBDA = f'{HOME}/lambda/home?region={REGION}'
+DYNAMODB = f'{HOME}/dynamodbv2/home?region={REGION}'
+CLOUDFORMATION = f'{HOME}/cloudformation/home?region={REGION}'
+SQS = f'{HOME}/sqs/v3/home?region={REGION}'
+LOGS = f'{HOME}/cloudwatch/home?region={REGION}'
+IAM = 'https://console.aws.amazon.com/iam/home'
+S3 = 'https://console.aws.amazon.com/s3'
+QUEUE = 'https://sqs.us-west-2.amazonaws.com/123456789012/orders'
+LOG_GROUP_ARN = 'arn:aws:logs:us-west-2:123456789012:log-group:/aws/lambda/f'
+
+
+def url_for(command, response=None, after_run=False):
+    service, *remaining = command.split()
+    decision = resolve(
+        service, remaining, ctx(), response=response, after_run=after_run
+    )
+    return decision.url
+
+
+class BasePagesTest(unittest.TestCase):
+    def assert_pages(self, cases):
+        for command, expected in cases:
+            with self.subTest(command=command):
+                self.assertEqual(url_for(command), expected)
+
+
+class TestEc2Pages(BasePagesTest):
+    def test_resource_pages_use_the_routes_the_console_has(self):
+        self.assert_pages(
+            [
+                (
+                    'ec2 describe-network-interfaces '
+                    '--network-interface-ids eni-0abc',
+                    EC2 + '#NetworkInterface:networkInterfaceId=eni-0abc',
+                ),
+                (
+                    'ec2 describe-key-pairs --key-names my-key',
+                    EC2 + '#KeyPairs:keyName=my-key',
+                ),
+                (
+                    'ec2 describe-addresses --allocation-ids eipalloc-0abc',
+                    EC2 + '#ElasticIpDetails:AllocationId=eipalloc-0abc',
+                ),
+            ]
+        )
+
+
+class TestUrlLength(unittest.TestCase):
+    def instances(self, count):
+        return {
+            'Reservations': [
+                {'Instances': [{'InstanceId': f'i-{index:017x}'}]}
+                for index in range(count)
+            ]
+        }
+
+    def test_filter_is_kept_while_the_url_fits(self):
+        url = url_for('ec2 describe-instances', self.instances(3), True)
+        self.assertTrue(url.startswith(EC2 + '#Instances:instanceId=i-'))
+        self.assertLessEqual(len(url), MAX_URL_LENGTH)
+
+    def test_too_many_instances_open_the_unfiltered_list(self):
+        url = url_for('ec2 describe-instances', self.instances(500), True)
+        self.assertEqual(url, EC2 + '#Instances:')
+
+    def test_too_many_launched_instances_open_the_unfiltered_list(self):
+        response = {
+            'Instances': [
+                {'InstanceId': f'i-{index:017x}'} for index in range(500)
+            ]
+        }
+        url = url_for('ec2 run-instances --image-id ami-1', response, True)
+        self.assertEqual(url, EC2 + '#Instances:')
+
+    def test_too_many_vpcs_open_the_unfiltered_list(self):
+        response = {
+            'Vpcs': [{'VpcId': f'vpc-{index:017x}'} for index in range(500)]
+        }
+        url = url_for('ec2 describe-vpcs', response, True)
+        self.assertEqual(url, VPC + '#vpcs:')
+
+    def test_too_many_functions_open_the_unfiltered_list(self):
+        response = {
+            'Functions': [
+                {'FunctionName': f'function-number-{index}'}
+                for index in range(500)
+            ]
+        }
+        url = url_for('lambda list-functions', response, True)
+        self.assertEqual(url, LAMBDA + '#/functions')
+
+    def test_no_page_is_longer_than_the_limit(self):
+        # Each of these characters takes three in the URL.
+        key = '{' * 700
+        decision = resolve('s3', ['cp', 'f.txt', f's3://photos/{key}'], ctx())
+        self.assertEqual(decision.url, f'{S3}/buckets?region={REGION}')
+        self.assertLessEqual(len(decision.url), MAX_URL_LENGTH)
+
+
+class TestResponseNamesOtherResources(unittest.TestCase):
+    def test_listed_objects_do_not_replace_the_bucket(self):
+        response = {
+            'Contents': [{'Key': 'a.txt'}, {'Key': 'dir/b.txt'}],
+            'Name': 'photos',
+            'Prefix': '',
+            'KeyCount': 2,
+        }
+        self.assertEqual(
+            url_for('s3api list-objects-v2 --bucket photos', response, True),
+            f'{S3}/buckets/photos?region={REGION}',
+        )
+
+    def test_listed_objects_keep_the_typed_prefix(self):
+        response = {'Contents': [{'Key': 'dir/b.txt'}], 'Prefix': 'dir/'}
+        self.assertEqual(
+            url_for(
+                's3api list-objects-v2 --bucket photos --prefix dir/',
+                response,
+                True,
+            ),
+            f'{S3}/buckets/photos?region={REGION}'
+            '&prefix=dir%2F&showversions=false',
+        )
+
+    def test_listed_versions_do_not_replace_the_bucket(self):
+        response = {'Versions': [{'Key': 'a.txt', 'VersionId': 'v1'}]}
+        self.assertEqual(
+            url_for(
+                's3api list-object-versions --bucket photos', response, True
+            ),
+            f'{S3}/buckets/photos?region={REGION}',
+        )
+
+    def test_a_rule_prefix_does_not_replace_the_bucket(self):
+        response = {
+            'ReplicationConfiguration': {
+                'Rules': [
+                    {
+                        'Prefix': 'x/',
+                        'Destination': {'Bucket': 'arn:aws:s3:::other'},
+                    }
+                ]
+            }
+        }
+        self.assertEqual(
+            url_for(
+                's3api get-bucket-replication --bucket photos', response, True
+            ),
+            f'{S3}/buckets/photos?region={REGION}',
+        )
+
+    def test_a_typed_key_still_opens_the_object(self):
+        self.assertEqual(
+            url_for('s3api head-object --bucket photos --key dir/a.txt'),
+            f'{S3}/object/photos?region={REGION}&prefix=dir%2Fa.txt',
+        )
+
+    def test_listed_streams_do_not_replace_the_log_group(self):
+        response = {
+            'logStreams': [
+                {'logStreamName': '2026/11/26/[$LATEST]aaa'},
+                {'logStreamName': '2026/11/25/[$LATEST]bbb'},
+            ]
+        }
+        self.assertEqual(
+            url_for(
+                'logs describe-log-streams --log-group-name /aws/lambda/f',
+                response,
+                True,
+            ),
+            LOGS + '#logsV2:log-groups/log-group/%2Faws%2Flambda%2Ff',
+        )
+
+    def test_event_streams_do_not_replace_the_log_group(self):
+        response = {'events': [{'logStreamName': 's1', 'message': 'm'}]}
+        self.assertEqual(
+            url_for(
+                'logs filter-log-events --log-group-name app', response, True
+            ),
+            LOGS + '#logsV2:log-groups/log-group/app',
+        )
+
+    def test_a_nested_role_does_not_replace_the_command(self):
+        response = {
+            'InstanceProfiles': [
+                {'InstanceProfileName': 'web', 'Roles': [{'RoleName': 'r1'}]}
+            ]
+        }
+        self.assertEqual(
+            url_for('iam list-instance-profiles', response, True), IAM
+        )
+
+    def test_the_user_in_a_user_response_is_opened(self):
+        response = {'User': {'UserName': 'alice'}}
+        self.assertEqual(
+            url_for('iam get-user', response, True),
+            IAM + '#/users/details/alice',
+        )
+
+
+class TestS3Pages(BasePagesTest):
+    def test_directory_targets_open_that_prefix(self):
+        prefix = '&prefix={}&showversions=false'
+        bucket = f'{S3}/buckets/photos?region={REGION}'
+        self.assert_pages(
+            [
+                (
+                    's3 sync ./dir s3://photos/backup',
+                    bucket + prefix.format('backup%2F'),
+                ),
+                (
+                    's3 sync s3://photos/a/b ./dir',
+                    bucket + prefix.format('a%2Fb%2F'),
+                ),
+                ('s3 sync ./dir s3://photos', bucket),
+                (
+                    's3 cp ./dir s3://photos/dir --recursive',
+                    bucket + prefix.format('dir%2F'),
+                ),
+                (
+                    's3 mv ./dir s3://photos/a/dir --recursive',
+                    bucket + prefix.format('a%2Fdir%2F'),
+                ),
+                (
+                    's3 rm s3://photos/dir --recursive',
+                    bucket + prefix.format('dir%2F'),
+                ),
+            ]
+        )
+
+    def test_object_and_bucket_pages(self):
+        obj = f'{S3}/object/photos?region={REGION}&prefix='
+        self.assert_pages(
+            [
+                ('s3 rm s3://photos/dir/a.txt', obj + 'dir%2Fa.txt'),
+                (
+                    's3 presign s3://photos/dir/a.txt --expires-in 60',
+                    obj + 'dir%2Fa.txt',
+                ),
+                (
+                    's3 website s3://photos --index-document index.html',
+                    f'{S3}/buckets/photos?region={REGION}&tab=properties',
+                ),
+                ('s3 rb s3://photos', f'{S3}/buckets/photos?region={REGION}'),
+            ]
+        )
+
+    def test_mb_without_a_bucket_opens_the_create_page(self):
+        self.assertEqual(
+            url_for('s3 mb'), f'{S3}/bucket/create?region={REGION}'
+        )
+
+    def test_mb_with_a_bucket_opens_the_bucket(self):
+        self.assertEqual(
+            url_for('s3 mb s3://photos', after_run=True),
+            f'{S3}/buckets/photos?region={REGION}',
+        )
+
+    def test_a_path_named_help_is_not_a_help_request(self):
+        from awscli.customizations.openconsole.resolver import is_help
+
+        self.assertFalse(is_help('s3', ['cp', 'help', 's3://photos/help']))
+        self.assertEqual(
+            url_for('s3 cp help s3://photos/help'),
+            f'{S3}/object/photos?region={REGION}&prefix=help',
+        )
+        self.assertTrue(is_help('s3', ['cp', 'help']))
+        self.assertTrue(is_help('s3', ['ls', 's3://photos', 'help']))
+
+
+class TestLogsPages(BasePagesTest):
+    GROUP = LOGS + '#logsV2:log-groups/log-group/%2Faws%2Flambda%2Ff'
+
+    def test_log_group_list(self):
+        self.assert_pages(
+            [
+                ('logs', LOGS + '#logsV2:log-groups'),
+                ('logs describe-log-groups', LOGS + '#logsV2:log-groups'),
+                ('logs tail', LOGS + '#logsV2:log-groups'),
+            ]
+        )
+
+    def test_group_and_stream_pages(self):
+        self.assert_pages(
+            [
+                (
+                    'logs describe-log-streams '
+                    '--log-group-name /aws/lambda/f',
+                    self.GROUP,
+                ),
+                (
+                    'logs get-log-events --log-group-name /aws/lambda/f '
+                    '--log-stream-name 2026/11/26/s1',
+                    self.GROUP + '/log-events/2026%2F11%2F26%2Fs1',
+                ),
+                (
+                    'logs create-log-group --log-group-name app',
+                    LOGS + '#logsV2:log-groups/log-group/app',
+                ),
+            ]
+        )
+
+    def test_tail_opens_the_group_it_names(self):
+        self.assert_pages(
+            [
+                ('logs tail /aws/lambda/f', self.GROUP),
+                ('logs tail /aws/lambda/f --follow', self.GROUP),
+                ('logs tail --follow /aws/lambda/f', self.GROUP),
+                ('logs tail /aws/lambda/f --since 1h', self.GROUP),
+            ]
+        )
+
+    def test_tail_with_an_arn_uses_go_view(self):
+        self.assertEqual(
+            url_for(f'logs tail {LOG_GROUP_ARN}'),
+            go_view(REGION, LOG_GROUP_ARN, 'aws'),
+        )
+
+
+class TestServicePages(BasePagesTest):
+    def test_cloudformation(self):
+        self.assert_pages(
+            [
+                ('cloudformation', CLOUDFORMATION),
+                ('cloudformation describe-stacks', CLOUDFORMATION + '#stacks'),
+                (
+                    'cloudformation describe-stacks --stack-name web',
+                    CLOUDFORMATION + '#stacks/stackinfo?stackId=web',
+                ),
+                (
+                    'cloudformation create-stack',
+                    CLOUDFORMATION + '#stacks/create',
+                ),
+                ('cloudformation list-exports', CLOUDFORMATION),
+            ]
+        )
+
+    def test_created_stack_is_opened_after_the_command(self):
+        self.assertEqual(
+            url_for(
+                'cloudformation create-stack --stack-name web',
+                {'StackId': 'arn:aws:cloudformation:us-west-2:1:stack/web/1'},
+                True,
+            ),
+            CLOUDFORMATION + '#stacks/stackinfo?stackId=web',
+        )
+
+    def test_sqs(self):
+        queue = SQS + '#/queues/' + quote_plus(QUEUE)
+        self.assert_pages(
+            [
+                ('sqs', SQS + '#/queues'),
+                ('sqs list-queues', SQS + '#/queues'),
+                ('sqs create-queue', SQS + '#/create-queue'),
+                (f'sqs get-queue-attributes --queue-url {QUEUE}', queue),
+            ]
+        )
+        self.assertEqual(
+            url_for(
+                'sqs create-queue --queue-name orders',
+                {'QueueUrl': QUEUE},
+                True,
+            ),
+            queue,
+        )
+
+    def test_lambda(self):
+        self.assert_pages(
+            [
+                ('lambda', LAMBDA + '#/begin'),
+                ('lambda list-functions', LAMBDA + '#/functions'),
+                ('lambda create-function', LAMBDA + '#/create/function'),
+                (
+                    'lambda invoke --function-name api out.json',
+                    LAMBDA + '#/functions/api',
+                ),
+                ('lambda list-layers', LAMBDA + '#/begin'),
+            ]
+        )
+
+    def test_dynamodb(self):
+        self.assert_pages(
+            [
+                ('dynamodb', DYNAMODB),
+                ('dynamodb list-tables', DYNAMODB + '#table'),
+                ('dynamodb create-table', DYNAMODB + '#create-table'),
+                (
+                    'dynamodb scan --table-name Music',
+                    DYNAMODB + '#table?name=Music',
+                ),
+            ]
+        )
+
+    def test_iam(self):
+        self.assert_pages(
+            [
+                ('iam', IAM),
+                ('iam list-roles', IAM + '#/roles'),
+                ('iam list-users', IAM + '#/users'),
+                (
+                    'iam get-user --user-name alice',
+                    IAM + '#/users/details/alice',
+                ),
+                (
+                    'iam list-attached-role-policies --role-name Admin',
+                    IAM + '#/roles/details/Admin',
+                ),
+                ('iam list-policies', IAM),
+            ]
+        )
+
+    def test_several_users_open_the_user_list(self):
+        response = {'Users': [{'UserName': 'a'}, {'UserName': 'b'}]}
+        self.assertEqual(
+            url_for('iam list-users', response, True), IAM + '#/users'
         )
