@@ -384,6 +384,12 @@ PLUGIN_REGISTRY = {
     'building-argument-table.mturk.list-qualification-types': [
         ('awscli.customizations.argrename', 'register_arg_renames')
     ],
+    'building-argument-table.opensearchmemory.search-events': [
+        ('awscli.customizations.argrename', 'register_arg_renames')
+    ],
+    'building-argument-table.opensearchmemory.search-memories': [
+        ('awscli.customizations.argrename', 'register_arg_renames')
+    ],
     'building-argument-table.pinpoint.delete-email-template': [
         ('awscli.customizations.argrename', 'register_arg_renames')
     ],
@@ -474,6 +480,9 @@ PLUGIN_REGISTRY = {
     'building-argument-table.route53domains.view-billing': [
         ('awscli.customizations.argrename', 'register_arg_renames')
     ],
+    'building-argument-table.rtbfabric.get-available-module-version': [
+        ('awscli.customizations.argrename', 'register_arg_renames')
+    ],
     'building-argument-table.s3api.select-object-content': [
         ('awscli.customizations.s3events', 'register_event_stream_arg')
     ],
@@ -528,6 +537,15 @@ PLUGIN_REGISTRY = {
     'building-command-table': [
         ('awscli.customizations.waiters', 'register_add_waiters'),
         ('awscli.alias', 'register_alias_commands'),
+    ],
+    'building-command-table.agent-registry': [
+        ('awscli.customizations.agentregistry', 'initialize')
+    ],
+    'building-argument-table.agent-registry': [
+        ('awscli.customizations.agentregistry', 'initialize')
+    ],
+    'calling-command.agent-registry': [
+        ('awscli.customizations.agentregistry', 'initialize')
     ],
     'building-command-table.agent-toolkit': [
         (
@@ -697,6 +715,9 @@ PLUGIN_REGISTRY = {
     ],
     'building-command-table.s3_sync': [
         ('awscli.customizations.s3.s3', 'register_s3_sync_strategies')
+    ],
+    'building-command-table.sagemaker-gateway-runtime': [
+        ('awscli.customizations.removals', 'register_removals')
     ],
     'building-command-table.sagemaker-runtime': [
         ('awscli.customizations.removals', 'register_removals')
@@ -913,6 +934,12 @@ MAIN_COMMAND_TABLE_OPS: list[
         'logout',
         'awscli.customizations.login.logout',
         'LogoutCommand',
+    ),
+    (
+        CommandTableOp.ADD,
+        'signup',
+        'awscli.customizations.login.signup',
+        'SignupCommand',
     ),
     (
         CommandTableOp.RENAME,

@@ -145,6 +145,9 @@ def test_same_device_fetch_token_success(
     assert token == EXPECTED_TOKEN
     assert session_id == 'arn:aws:sts::012345678901:assumed-role/Admin/admin'
     mock_on_pending_auth.assert_called_once()
+    mock_auth_code_fetcher.get_auth_code_and_state.assert_called_once_with(
+        expected_state=str(mock_same_device_fetcher._expected_state)
+    )
     mock_client.create_o_auth2_token.assert_called_with(
         tokenInput={
             'clientId': 'arn:aws:signin:::devtools/same-device',
@@ -329,3 +332,32 @@ def test_same_device_fetch_token_expired_auth_code(
         LoginAuthorizationCodeError, match="expired authorization code"
     ):
         mock_same_device_fetcher.fetch_token()
+
+
+@pytest.mark.parametrize(
+    'prompt,expected_prompt_param',
+    [(None, ''), ('create', '&prompt=create')],
+)
+def test_authorization_uri_prompt(prompt, expected_prompt_param):
+    fetcher = SameDeviceLoginTokenFetcher(
+        client=mock.Mock(),
+        auth_code_fetcher=mock.Mock(),
+        on_pending_authorization=mock.Mock(),
+        base_uri_builder=lambda client: 'https://signin.example.com',
+        prompt=prompt,
+    )
+
+    uri = fetcher._get_authorization_uri(
+        client_id='client-id',
+        expected_state='state',
+        code_challenge='challenge=',
+        redirect_uri='http://127.0.0.1:8080/oauth/callback',
+    )
+
+    assert uri == (
+        'https://signin.example.com/v1/authorize?response_type=code'
+        '&client_id=client-id&state=state&code_challenge_method=SHA-256'
+        '&scope=openid'
+        '&redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2Foauth%2Fcallback'
+        f'{expected_prompt_param}&code_challenge=challenge'
+    )

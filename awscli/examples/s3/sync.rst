@@ -80,12 +80,12 @@ Output::
 
     upload: test2.txt to s3://amzn-s3-demo-bucket/test2.txt
 
-**Example 6: To sync all local objects to the specified bucket except specified directory files**
+**Example 6: To sync objects from the specified S3 bucket to the local directory except specified directory files**
 
-The following ``sync`` example syncs files under a local directory to objects under a specified prefix and bucket by
+The following ``sync`` example syncs objects from the specified S3 bucket to the local directory by
 downloading S3 objects.  This example uses the ``--exclude`` parameter flag to exclude a specified directory
-and S3 prefix from the ``sync`` command.  In this example, the user syncs the local current directory to the bucket
-``amzn-s3-demo-bucket``.  The local current directory contains the files ``test.txt`` and ``another/test2.txt``.  The bucket
+and S3 prefix from the ``sync`` command.  In this example, the user syncs the bucket ``amzn-s3-demo-bucket`` to the
+local current directory.  The local current directory contains the files ``test.txt`` and ``another/test2.txt``.  The bucket
 ``amzn-s3-demo-bucket`` contains the objects ``another/test5.txt`` and ``test1.txt``. ::
 
     aws s3 sync s3://amzn-s3-demo-bucket/ . \
@@ -117,5 +117,18 @@ Output::
 
     upload: test.txt to s3://arn:aws:s3:us-west-2:123456789012:accesspoint/myaccesspoint/test.txt
     upload: test2.txt to s3://arn:aws:s3:us-west-2:123456789012:accesspoint/myaccesspoint/test2.txt
+
+**Example 9: To sync a local directory to a bucket with tags**
+
+The following ``sync`` example syncs the current directory to a specified bucket while setting two tags on each uploaded object. Specify ``--tags`` once per tag, separating the key and value with a space. Tags are set only on objects that are actually uploaded. ::
+
+    aws s3 sync . s3://amzn-s3-demo-bucket \
+        --tags key1 value1 \
+        --tags key2 value2
+
+Output::
+
+    upload: test.txt to s3://amzn-s3-demo-bucket/test.txt
+    upload: test2.txt to s3://amzn-s3-demo-bucket/test2.txt
 
 For more information, see `Using high-level (s3) commands in the AWS CLI <https://docs.aws.amazon.com/cli/latest/userguide/cli-services-s3-commands.html#using-s3-commands-managing-objects-sync>`__ in the *AWS CLI User Guide*.

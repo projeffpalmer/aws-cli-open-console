@@ -16,6 +16,7 @@ import sys
 import awscrt.s3
 from botocore.client import Config
 from botocore.httpsession import DEFAULT_CA_BUNDLE
+from botocore.retries.standard import DEFAULT_MAX_ATTEMPTS
 from botocore.useragent import register_feature_id
 from s3transfer.crt import (
     BotocoreCRTCredentialsWrapper,
@@ -42,11 +43,8 @@ LOGGER = logging.getLogger(__name__)
 
 ADAPTIVE_RETRY_MODE = 'adaptive'
 
-# A max_retries of 0 configures the crt client's own retry count instead of
-# disabling retries, so it cannot honor a single attempt. It also rejects a
-# max_retries of 64 or more outright.
-MIN_CRT_MAX_ATTEMPTS = 2
-MAX_CRT_MAX_ATTEMPTS = 64
+# The crt client stores max_retries as a uint32.
+MAX_CRT_MAX_RETRIES = 2**32 - 1
 
 # Throughput target, in gigabits per second, for hosts the crt client has not
 # been tuned for. Staying at 4 keeps it in its smallest memory pool tier.
@@ -245,33 +243,16 @@ class TransferManagerFactory:
 
     def _get_unsupported_settings(self, params, runtime_config):
         unsupported = self._get_classic_only_settings(runtime_config)
-        if self._is_adaptive_retry_mode():
-            unsupported.append(f'retry_mode = {ADAPTIVE_RETRY_MODE}')
         if self._is_non_seekable_stream_upload(params):
             unsupported.append('uploads from a non-seekable stream')
-        if unsupported_attempts := self._get_unsupported_max_attempts(
-            runtime_config
-        ):
-            unsupported.append(unsupported_attempts)
         return unsupported
-
-    def _get_unsupported_max_attempts(self, runtime_config):
-        max_attempts = self._resolve_max_attempts(runtime_config)
-        if max_attempts is None or (
-            MIN_CRT_MAX_ATTEMPTS <= max_attempts <= MAX_CRT_MAX_ATTEMPTS
-        ):
-            return None
-        return (
-            f'max_attempts = {max_attempts} (must be between '
-            f'{MIN_CRT_MAX_ATTEMPTS} and {MAX_CRT_MAX_ATTEMPTS})'
-        )
 
     def _resolve_max_attempts(self, runtime_config):
         config_store = self._session.get_component('config_store')
-        if config_store.is_explicitly_set('max_attempts') or (
-            self._should_use_transfer_config_defaults(runtime_config)
-        ):
+        if config_store.is_explicitly_set('max_attempts'):
             return self._session.get_config_variable('max_attempts')
+        if self._should_use_transfer_config_defaults(runtime_config):
+            return DEFAULT_MAX_ATTEMPTS
         return None
 
     def _get_classic_only_settings(self, runtime_config):
@@ -320,13 +301,6 @@ class TransferManagerFactory:
         unsupported = self._get_unsupported_options(
             client_type, runtime_config
         )
-        if client_type == constants.CRT_TRANSFER_CLIENT:
-            if self._is_adaptive_retry_mode():
-                unsupported.append(f'retry_mode = {ADAPTIVE_RETRY_MODE}')
-            if unsupported_attempts := self._get_unsupported_max_attempts(
-                runtime_config
-            ):
-                unsupported.append(unsupported_attempts)
         if not unsupported:
             return
         uni_print(
@@ -451,10 +425,17 @@ class TransferManagerFactory:
             # passed to opt into the CRT's dynamic part size calculation.
             kwargs['part_size'] = None
         max_attempts = self._resolve_max_attempts(runtime_config)
-        if max_attempts is not None and (
-            MIN_CRT_MAX_ATTEMPTS <= max_attempts <= MAX_CRT_MAX_ATTEMPTS
-        ):
-            kwargs['retry_options'] = {'max_retries': max_attempts - 1}
+        retry_options = {}
+        if self._is_adaptive_retry_mode():
+            retry_options['retry_mode'] = awscrt.s3.S3RetryMode.ADAPTIVE
+        if max_attempts == 1:
+            retry_options['retry_mode'] = awscrt.s3.S3RetryMode.NONE
+        elif max_attempts is not None:
+            retry_options['max_retries'] = min(
+                max_attempts - 1, MAX_CRT_MAX_RETRIES
+            )
+        if retry_options:
+            kwargs['retry_options'] = retry_options
         return kwargs
 
     def _resolve_target_throughput(self, runtime_config):

@@ -10,9 +10,12 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+import itertools
 import os
+import select
 import socket
 import threading
+import time
 import webbrowser
 
 import pytest
@@ -27,6 +30,7 @@ from awscli.customizations.sso.utils import (
     OAuthCallbackHandler,
     OpenBrowserHandler,
     PrintOnlyHandler,
+    _DeadlineOAuthCallbackHandler,
     do_sso_login,
     open_browser_with_original_ld_path,
     parse_sso_registration_scopes,
@@ -241,6 +245,38 @@ class TestOpenBrowserHandler(BaseHandlerTest):
         self.assert_text_in_output(self.user_code, self.verification_uri)
         self.open_browser.assert_called_with(self.verification_uri_complete)
 
+    def test_auth_code_flow_suggests_cross_device_flag(self):
+        self.pending_authorization['userCode'] = None
+        self.handler(**self.pending_authorization)
+        self.assertEqual(
+            self.stream.getvalue(),
+            'Attempting to open your default browser. '
+            'If the browser does not open, open the following URL.\n'
+            'If you are unable to open the URL on this device, '
+            'run this command again with the \'--use-device-code\' option.\n'
+            f'\n{self.verification_uri}\n\n',
+        )
+        self.open_browser.assert_called_with(self.verification_uri_complete)
+
+    def test_auth_code_flow_without_cross_device_flag(self):
+        for cross_device_flag in (None, ''):
+            self.stream = StringIO()
+            handler = OpenBrowserHandler(
+                self.stream, open_browser=self.open_browser
+            )
+            self.pending_authorization['userCode'] = None
+            self.pending_authorization['cross_device_flag'] = cross_device_flag
+            handler(**self.pending_authorization)
+            self.assertEqual(
+                self.stream.getvalue(),
+                'Attempting to open your default browser. '
+                'If the browser does not open, open the following URL.\n'
+                f'\n{self.verification_uri}\n\n',
+            )
+            self.open_browser.assert_called_with(
+                self.verification_uri_complete
+            )
+
 
 class TestOpenBrowserWithPatchedEnv(unittest.TestCase):
     def test_can_patch_env(self):
@@ -266,6 +302,9 @@ class MockRequest:
         return BytesIO(self._request)
 
     def sendall(self, data):
+        pass
+
+    def settimeout(self, timeout):
         pass
 
 
@@ -312,13 +351,165 @@ class TestOAuthCallbackHandler:
         fetcher.set_auth_code_and_state.assert_not_called()
 
 
+def _create_mock_fetcher():
+    fetcher = mock.Mock(AuthCodeFetcher)
+    fetcher._REQUEST_TIMEOUT = AuthCodeFetcher._REQUEST_TIMEOUT
+    fetcher._REDIRECT_PATH = AuthCodeFetcher._REDIRECT_PATH
+    return fetcher
+
+
+class TestStrictOAuthCallbackHandler:
+    """Tests for OAuthCallbackHandler when it is given an expected state"""
+
+    def _handle(self, request_line, expected_state='123'):
+        fetcher = _create_mock_fetcher()
+        request = MockRequest(request_line + b' HTTP/1.1\r\n\r\n')
+        handler = mock.MagicMock()
+        with (
+            mock.patch.object(
+                OAuthCallbackHandler, 'send_response'
+            ) as send_response,
+            mock.patch.object(OAuthCallbackHandler, 'send_header'),
+            mock.patch.object(OAuthCallbackHandler, 'end_headers'),
+        ):
+            OAuthCallbackHandler(
+                fetcher,
+                request,
+                mock.MagicMock(),
+                handler,
+                expected_state=expected_state,
+            )
+        return fetcher, send_response
+
+    def test_expected_state_and_code(self):
+        fetcher, send_response = self._handle(
+            b'GET /oauth/callback?state=123&code=456'
+        )
+        fetcher.set_auth_code_and_state.assert_called_once_with('456', '123')
+        send_response.assert_called_once_with(200)
+
+    @pytest.mark.parametrize(
+        'path',
+        [
+            b'/?state=123&code=456',
+            b'/callback?state=123&code=456',
+            b'/oauth/callback/extra?state=123&code=456',
+        ],
+    )
+    def test_other_path_is_rejected(self, path):
+        fetcher, send_response = self._handle(b'GET ' + path)
+        fetcher.set_auth_code_and_state.assert_not_called()
+        fetcher.set_error_and_state.assert_not_called()
+        send_response.assert_called_once_with(404)
+
+    @pytest.mark.parametrize(
+        'query',
+        [
+            b'code=456',
+            b'state=999&code=456',
+            b'state=1234&code=456',
+            b'state=&code=456',
+            b'error=access_denied',
+            b'state=999&error=access_denied',
+        ],
+    )
+    def test_missing_or_wrong_state_is_rejected(self, query):
+        fetcher, send_response = self._handle(b'GET /oauth/callback?' + query)
+        fetcher.set_auth_code_and_state.assert_not_called()
+        fetcher.set_error_and_state.assert_not_called()
+        send_response.assert_called_once_with(400)
+
+    def test_error_with_expected_state(self):
+        fetcher, send_response = self._handle(
+            b'GET /oauth/callback?state=123&error=access_denied'
+            b'&error_description=User%20denied'
+        )
+        fetcher.set_error_and_state.assert_called_once_with(
+            'access_denied', 'User denied', '123'
+        )
+        fetcher.set_auth_code_and_state.assert_not_called()
+        send_response.assert_called_once_with(200)
+
+    def test_error_without_description(self):
+        fetcher, _ = self._handle(
+            b'GET /oauth/callback?state=123&error=access_denied'
+        )
+        fetcher.set_error_and_state.assert_called_once_with(
+            'access_denied', None, '123'
+        )
+
+    def test_neither_code_nor_error_is_rejected(self):
+        fetcher, send_response = self._handle(b'GET /oauth/callback?state=123')
+        fetcher.set_auth_code_and_state.assert_not_called()
+        fetcher.set_error_and_state.assert_not_called()
+        send_response.assert_called_once_with(400)
+
+    def test_sets_per_connection_timeout_only_when_strict(self):
+        # setup() applies self.timeout to the connection, so it must be
+        # set before BaseRequestHandler.__init__ calls setup()
+        timeouts = []
+
+        def record_timeout(handler):
+            timeouts.append(handler.timeout)
+
+        fetcher = _create_mock_fetcher()
+        fetcher._REQUEST_TIMEOUT = 7
+        patch = mock.patch.object
+        with (
+            patch(OAuthCallbackHandler, 'setup', record_timeout),
+            patch(OAuthCallbackHandler, 'handle'),
+            patch(OAuthCallbackHandler, 'finish'),
+        ):
+            for expected_state in ('123', None):
+                OAuthCallbackHandler(
+                    fetcher,
+                    MockRequest(b''),
+                    mock.MagicMock(),
+                    mock.MagicMock(),
+                    expected_state=expected_state,
+                )
+        assert timeouts == [7, None]
+
+    def test_uses_the_fetchers_redirect_path(self):
+        fetcher = _create_mock_fetcher()
+        fetcher._REDIRECT_PATH = '/custom/callback'
+        with (
+            mock.patch.object(
+                OAuthCallbackHandler, 'send_response'
+            ) as send_response,
+            mock.patch.object(OAuthCallbackHandler, 'send_header'),
+            mock.patch.object(OAuthCallbackHandler, 'end_headers'),
+        ):
+            for path in (b'/oauth/callback', b'/custom/callback'):
+                OAuthCallbackHandler(
+                    fetcher,
+                    MockRequest(
+                        b'GET '
+                        + path
+                        + b'?state=123&code=456 HTTP/1.1\r\n\r\n'
+                    ),
+                    mock.MagicMock(),
+                    mock.MagicMock(),
+                    expected_state='123',
+                )
+        assert send_response.call_args_list == [mock.call(404), mock.call(200)]
+        fetcher.set_auth_code_and_state.assert_called_once_with('456', '123')
+
+
+def _create_auth_code_fetcher(**kwargs):
+    # Binding the fetcher's HTTPServer does a reverse DNS lookup of the host,
+    # which can stall for seconds. The resulting server name is unused.
+    with mock.patch('socket.getfqdn', return_value='localhost'):
+        return AuthCodeFetcher(**kwargs)
+
+
 class TestAuthCodeFetcher:
     """Tests for the AuthCodeFetcher class, which is the local
     web server we use to handle the OAuth 2.0 callback
     """
 
     def setup_method(self):
-        self.fetcher = AuthCodeFetcher()
+        self.fetcher = _create_auth_code_fetcher()
         self.url = (
             f'http://127.0.0.1:{self.fetcher.http_server.server_address[1]}/'
         )
@@ -368,12 +559,137 @@ def test_get_auth_code_and_state_timeout():
     since we need to override the constants
     """
     with pytest.raises(PendingAuthorizationExpiredError):
-        AuthCodeFetcher().get_auth_code_and_state()
+        _create_auth_code_fetcher().get_auth_code_and_state()
+
+
+class TestAuthCodeFetcherWithExpectedState:
+    """Tests for the AuthCodeFetcher when waiting for a specific state"""
+
+    expected_state = 'expected-state'
+
+    def setup_method(self):
+        self.fetcher = _create_auth_code_fetcher()
+        self.url = self.fetcher.redirect_uri_with_port()
+        self.result = {}
+
+        def wait():
+            try:
+                self.result['value'] = self.fetcher.get_auth_code_and_state(
+                    expected_state=self.expected_state
+                )
+            except Exception as e:
+                self.result['error'] = e
+
+        self.server_thread = threading.Thread(target=wait)
+        self.server_thread.daemon = True
+        self.server_thread.start()
+        self.http = urllib3.PoolManager(retries=False)
+
+    def teardown_method(self):
+        if self.server_thread.is_alive():
+            self.fetcher.set_auth_code_and_state(None, None)
+            # Wake up handle_request so the wait loop sees it's done
+            try:
+                urllib3.PoolManager(retries=False).request(
+                    'GET', self.url, timeout=1
+                )
+            except urllib3.exceptions.HTTPError:
+                pass
+            self.server_thread.join(timeout=5)
+
+    def _get_result(self):
+        self.server_thread.join(timeout=5)
+        assert not self.server_thread.is_alive()
+        return self.result['value']
+
+    def test_expected_auth_code(self):
+        response = self.http.request(
+            'GET', f'{self.url}?code=1234&state={self.expected_state}'
+        )
+        assert response.status == 200
+        assert self._get_result() == ('1234', self.expected_state)
+        assert self.fetcher.error is None
+
+    def test_stray_requests_do_not_end_the_wait(self):
+        base = self.url.replace('/oauth/callback', '')
+        stray = [
+            (f'{base}/?code=1&state={self.expected_state}', 404),
+            (f'{base}/favicon.ico', 404),
+            (f'{self.url}?code=1&state=wrong', 400),
+            (f'{self.url}?code=1', 400),
+            (f'{self.url}?error=access_denied', 400),
+        ]
+        for url, status in stray:
+            assert self.http.request('GET', url).status == status
+            assert self.server_thread.is_alive()
+
+        response = self.http.request(
+            'GET', f'{self.url}?code=1234&state={self.expected_state}'
+        )
+        assert response.status == 200
+        assert self._get_result() == ('1234', self.expected_state)
+
+    def test_error_with_expected_state(self):
+        response = self.http.request(
+            'GET',
+            f'{self.url}?error=access_denied&error_description=Denied'
+            f'&state={self.expected_state}',
+        )
+        assert response.status == 200
+        assert self._get_result() == (None, self.expected_state)
+        assert self.fetcher.error == {
+            'error': 'access_denied',
+            'error_description': 'Denied',
+        }
+
+
+@mock.patch(
+    'awscli.customizations.sso.utils.AuthCodeFetcher._REQUEST_TIMEOUT', 0.2
+)
+def test_idle_connection_does_not_block_strict_wait():
+    fetcher = _create_auth_code_fetcher()
+    result = {}
+
+    def wait():
+        result['value'] = fetcher.get_auth_code_and_state(expected_state='abc')
+
+    thread = threading.Thread(target=wait, daemon=True)
+    thread.start()
+    port = fetcher.http_server.server_port
+    # Open a connection and never send a request
+    with socket.create_connection(('127.0.0.1', port)):
+        thread.join(timeout=0.5)
+        response = urllib3.PoolManager(retries=False).request(
+            'GET',
+            f'http://127.0.0.1:{port}/oauth/callback?code=1&state=abc',
+            timeout=5,
+        )
+    assert response.status == 200
+    thread.join(timeout=5)
+    assert result['value'] == ('1', 'abc')
+
+
+def test_auth_code_fetcher_server_logs_handler_errors_at_debug(capsys):
+    fetcher = _create_auth_code_fetcher()
+    try:
+        try:
+            raise BrokenPipeError('client went away')
+        except BrokenPipeError:
+            with mock.patch('awscli.customizations.sso.utils.LOG') as log:
+                fetcher.http_server.handle_error(
+                    mock.Mock(), ('127.0.0.1', 1234)
+                )
+        log.debug.assert_called_once_with(
+            'Auth callback request failed', exc_info=True
+        )
+        assert capsys.readouterr().err == ''
+    finally:
+        fetcher.http_server.server_close()
 
 
 def test_auth_code_fetcher_uses_redirect_port():
     redirect_port = _get_available_port()
-    fetcher = AuthCodeFetcher(redirect_port=redirect_port)
+    fetcher = _create_auth_code_fetcher(redirect_port=redirect_port)
     try:
         assert fetcher.http_server.server_port == redirect_port
         assert fetcher.redirect_uri_with_port() == (
@@ -384,7 +700,7 @@ def test_auth_code_fetcher_uses_redirect_port():
 
 
 def test_auth_code_fetcher_binds_to_loopback_only():
-    fetcher = AuthCodeFetcher()
+    fetcher = _create_auth_code_fetcher()
     try:
         assert fetcher.http_server.server_address[0] == '127.0.0.1'
     finally:
@@ -395,3 +711,226 @@ def _get_available_port():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(('127.0.0.1', 0))
         return sock.getsockname()[1]
+
+
+class MockSocket(MockRequest):
+    def __init__(self, request):
+        super().__init__(request)
+        self.settimeout = mock.Mock()
+
+
+class TestDeadlineOAuthCallbackHandler:
+    """The expected_state handler that AuthCodeFetcher uses, with a limit on
+    each connection's total time."""
+
+    def setup_method(self):
+        self.fetcher = mock.Mock(AuthCodeFetcher)
+        self.fetcher._REQUEST_TIMEOUT = 0.5
+        self.fetcher._REDIRECT_PATH = '/oauth/callback'
+
+    def handle(self, request, deadline):
+        request.shutdown = mock.Mock()
+        _DeadlineOAuthCallbackHandler(
+            self.fetcher,
+            request,
+            mock.MagicMock(),
+            mock.MagicMock(),
+            expected_state='123',
+            deadline=deadline,
+        )
+
+    def test_request_timeout_is_the_fetchers_well_before_the_deadline(self):
+        request = MockSocket(b'GET /oauth/callback?state=123&code=456')
+        self.handle(request, deadline=time.time() + 60)
+        request.settimeout.assert_called_once_with(0.5)
+        self.fetcher.set_auth_code_and_state.assert_called_once_with(
+            '456', '123'
+        )
+
+    def test_request_timeout_is_capped_by_the_deadline(self):
+        request = MockSocket(b'GET /oauth/callback?state=123&code=456')
+        self.handle(request, deadline=time.time() + 0.2)
+        [timeout] = request.settimeout.call_args.args
+        # Allow for float rounding of the deadline arithmetic
+        assert 0 < timeout <= 0.2 + 1e-6
+
+    def test_request_timeout_past_the_deadline_still_blocks(self):
+        # A timeout of 0 would make the socket non-blocking
+        request = MockSocket(b'GET /oauth/callback?state=123&code=456')
+        self.handle(request, deadline=time.time() - 1)
+        request.settimeout.assert_called_once_with(0.01)
+
+    def test_wrong_state_is_still_rejected(self):
+        request = MockSocket(b'GET /oauth/callback?state=999&code=456')
+        self.handle(request, deadline=time.time() + 60)
+        self.fetcher.set_auth_code_and_state.assert_not_called()
+
+
+def _wait_in_thread(fetcher, **kwargs):
+    # Runs get_auth_code_and_state on a background thread so that the test
+    # thread can make the requests, recording what it returned or raised
+    result = {}
+
+    def wait():
+        try:
+            result['value'] = fetcher.get_auth_code_and_state(**kwargs)
+        except Exception as e:
+            result['exception'] = e
+
+    thread = threading.Thread(target=wait)
+    thread.daemon = True
+    thread.start()
+    return thread, result
+
+
+def _get(url):
+    return urllib3.PoolManager(retries=False).request('GET', url)
+
+
+def _trickle(port, give_up_after, stop=None, interval=0.1):
+    """Send a request one byte every ``interval`` seconds, well within the
+    per-read timeout, until the server ends the connection.
+
+    Returns how many seconds the connection lasted, or None if the server
+    kept it for ``give_up_after`` seconds or ``stop`` was set first.
+    """
+    payload = itertools.chain(
+        b'GET /oauth/callback?state=', itertools.repeat(ord('a'))
+    )
+    start = time.monotonic()
+    with socket.create_connection(('127.0.0.1', port)) as sock:
+        for byte in payload:
+            if time.monotonic() - start > give_up_after or (
+                stop is not None and stop.is_set()
+            ):
+                return None
+            try:
+                sock.sendall(bytes([byte]))
+                readable, _, _ = select.select([sock], [], [], interval)
+                if readable:
+                    # Closed, or an answer; either way the server is done
+                    sock.recv(1024)
+                    return time.monotonic() - start
+            except OSError:
+                return time.monotonic() - start
+
+
+@mock.patch(
+    'awscli.customizations.sso.utils.AuthCodeFetcher._REQUEST_TIMEOUT', 0.5
+)
+@mock.patch(
+    'awscli.customizations.sso.utils.AuthCodeFetcher._OVERALL_TIMEOUT', 5
+)
+def test_expected_state_trickling_connection_is_cut_off(capsys):
+    fetcher = AuthCodeFetcher()
+    port = fetcher.http_server.server_port
+    server_thread, result = _wait_in_thread(
+        fetcher, expected_state='expected-state'
+    )
+
+    # Each byte comes in time for the per-read timeout, but the connection
+    # only gets _REQUEST_TIMEOUT in total
+    lasted = _trickle(port, give_up_after=3)
+    assert lasted is not None
+    assert 0.4 <= lasted < AuthCodeFetcher._REQUEST_TIMEOUT + 1.5
+
+    # The wait goes on, and the callback that belongs to it still ends it
+    assert server_thread.is_alive()
+    response = _get(
+        f'http://127.0.0.1:{port}/oauth/callback'
+        '?state=expected-state&code=1234'
+    )
+    server_thread.join(timeout=5)
+    assert response.status == 200
+    assert result == {'value': ('1234', 'expected-state')}
+    # Cutting the connection off is not reported as a server error
+    assert capsys.readouterr().err == ''
+
+
+@mock.patch(
+    'awscli.customizations.sso.utils.AuthCodeFetcher._REQUEST_TIMEOUT', 10
+)
+@mock.patch(
+    'awscli.customizations.sso.utils.AuthCodeFetcher._OVERALL_TIMEOUT', 1
+)
+def test_expected_state_trickling_client_cannot_hold_wait_past_deadline():
+    fetcher = AuthCodeFetcher()
+    port = fetcher.http_server.server_port
+    stop = threading.Event()
+
+    def trickle_again_and_again():
+        while not stop.is_set():
+            try:
+                _trickle(port, give_up_after=30, stop=stop)
+            except OSError:
+                # The server stopped listening
+                return
+
+    start = time.monotonic()
+    server_thread, result = _wait_in_thread(
+        fetcher, expected_state='expected-state'
+    )
+    client_thread = threading.Thread(target=trickle_again_and_again)
+    client_thread.daemon = True
+    client_thread.start()
+    try:
+        server_thread.join(timeout=AuthCodeFetcher._OVERALL_TIMEOUT + 5)
+        elapsed = time.monotonic() - start
+    finally:
+        stop.set()
+    assert not server_thread.is_alive()
+    assert elapsed < AuthCodeFetcher._OVERALL_TIMEOUT + 1.5
+    assert isinstance(
+        result.get('exception'), PendingAuthorizationExpiredError
+    )
+    client_thread.join(timeout=5)
+
+
+@mock.patch(
+    'awscli.customizations.sso.utils.AuthCodeFetcher._REQUEST_TIMEOUT', 10
+)
+@mock.patch(
+    'awscli.customizations.sso.utils.AuthCodeFetcher._OVERALL_TIMEOUT', 0.5
+)
+def test_expected_state_accept_wait_ends_at_the_deadline():
+    fetcher = AuthCodeFetcher()
+    start = time.monotonic()
+    with pytest.raises(PendingAuthorizationExpiredError):
+        fetcher.get_auth_code_and_state(expected_state='expected-state')
+    assert time.monotonic() - start < AuthCodeFetcher._OVERALL_TIMEOUT + 1.5
+
+
+@mock.patch(
+    'awscli.customizations.sso.utils.AuthCodeFetcher._REQUEST_TIMEOUT', 0.2
+)
+@mock.patch(
+    'awscli.customizations.sso.utils.AuthCodeFetcher._OVERALL_TIMEOUT', 0.1
+)
+def test_without_expected_state_accept_wait_is_request_timeout():
+    fetcher = AuthCodeFetcher()
+    timeouts = []
+    handle_request = fetcher.http_server.handle_request
+
+    def record_timeout():
+        timeouts.append(fetcher.http_server.timeout)
+        handle_request()
+
+    with mock.patch.object(
+        fetcher.http_server, 'handle_request', side_effect=record_timeout
+    ):
+        with pytest.raises(PendingAuthorizationExpiredError):
+            fetcher.get_auth_code_and_state()
+    assert timeouts and set(timeouts) == {0.2}
+    assert fetcher.http_server.RequestHandlerClass.func is (
+        OAuthCallbackHandler
+    )
+
+
+def test_auth_code_fetcher_overall_timeout():
+    fetcher = AuthCodeFetcher()
+    try:
+        assert fetcher.overall_timeout == 600
+        with mock.patch.object(AuthCodeFetcher, '_OVERALL_TIMEOUT', 5):
+            assert fetcher.overall_timeout == 5
+    finally:
+        fetcher.http_server.server_close()
